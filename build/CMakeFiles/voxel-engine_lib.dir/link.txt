@@ -1,0 +1,2 @@
+/Library/Developer/CommandLineTools/usr/bin/ar qc libvoxel-engine_lib.a "CMakeFiles/voxel-engine_lib.dir/src/main.cpp.o"
+/Library/Developer/CommandLineTools/usr/bin/ranlib libvoxel-engine_lib.a
