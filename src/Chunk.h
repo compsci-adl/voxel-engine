@@ -1,4 +1,5 @@
 #ifndef CHUNK_H
+#define CHUNK_H
 #include "Block.h"
 #include "raylib.h"
 #include <stdlib.h>
@@ -11,10 +12,11 @@
 */
 
 struct Chunk {
-    static const int CHUNK_SIZE = 16;
+    static const int CHUNK_SIZE = 10;
     Block ***blocks;
     Mesh mesh;
     Model model;
+    bool isLoaded;
 
     Chunk() {
         blocks = new Block **[CHUNK_SIZE];
@@ -76,29 +78,13 @@ struct Chunk {
             }
         }
 
-        // mesh.vertexCount = vertexCount;
         mesh.triangleCount = indexCount / 3;
     }
 
     // renders the chunk
     void render() {
-
-        // for (int x = 0; x < CHUNK_SIZE; x++) {
-        //     for (int y = 0; y < CHUNK_SIZE; y++) {
-        //         for (int z = 0; z < CHUNK_SIZE; z++) {
-        //             Vector3 pos = {Block::BLOCK_RENDER_SIZE * (float)x,
-        //                            Block::BLOCK_RENDER_SIZE * (float)y,
-        //                            Block::BLOCK_RENDER_SIZE * (float)z};
-        //             Vector3 endPos = {
-        //                 Block::BLOCK_RENDER_SIZE * (float)x + 0.01f,
-        //                 Block::BLOCK_RENDER_SIZE * (float)y + 0.01f,
-        //                 Block::BLOCK_RENDER_SIZE * (float)z + 0.01f};
-        //             DrawLine3D(pos, endPos, RED);
-        //         }
-        //     }
-        // }
         DrawModel(model, {0.0, 0.0, 0.0}, 1.0f, DARKGREEN);
-        DrawModelWires(model, {0.0, 0.0, 0.0}, 1.0f, ORANGE);
+        DrawModelWires(model, {0.0, 0.0, 0.0}, 1.0f, GREEN);
     }
 
     void update() {
