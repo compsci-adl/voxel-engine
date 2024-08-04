@@ -3,11 +3,12 @@
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 #include <math.h>
+#include "Chunk.h"
 
 #define MAX_COLUMNS 20
 
-const int referenceScreenWidth = 800;
-const int referenceScreenHeight = 450;
+const int referenceScreenWidth = 1280;
+const int referenceScreenHeight = 720;
 
 // Function to calculate the scaling factor
 float GetScalingFactor(int currentWidth, int currentHeight) {
@@ -23,8 +24,8 @@ int main(void)
 {
     // Initialization
     //--------------------------------------------------------------------------------------
-    const int screenWidth = 800;
-    const int screenHeight = 600;
+    const int screenWidth = 1280;
+    const int screenHeight = 720;
 
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);    // Window configuration flags
     InitWindow(screenWidth, screenHeight, "voxel-engine");
@@ -41,10 +42,15 @@ int main(void)
 
     DisableCursor();                    // Limit cursor to relative movement inside the window
 
-    SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
+    SetTargetFPS(144);                   // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
 
     bool fullscreen = false;
+
+    Chunk chunk = Chunk();
+    chunk.randomize();
+    chunk.createMesh();
+    chunk.update();
 
     // Main game loop
     while (!WindowShouldClose())        // Detect window close button or ESC key
@@ -126,8 +132,10 @@ int main(void)
 
             BeginMode3D(camera);
 
-                DrawCube((Vector3){ -8.0f, -8.0f, -8.0f }, 8.0f, 8.0f, 8.0f, BLUE);     // Draw a blue wall
-                DrawCubeWires((Vector3){ -8.0f, -8.0f, -8.0f }, 8.0f, 8.0f, 8.0f, BLACK);     // Draw a blue wall
+                // Draw cubes
+                // DrawCube((Vector3){ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLUE);     // Draw a blue wall
+                // DrawCubeWires((Vector3){ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLACK);     // Draw a blue wall
+                chunk.render();
 
                 // Draw player cube
                 if (cameraMode == CAMERA_THIRD_PERSON)
@@ -146,24 +154,25 @@ int main(void)
             float scale = GetScalingFactor(currentScreenWidth, currentScreenHeight);
 
             // GUI controls using raygui
-            GuiLabel((Rectangle){ 15 * scale, 15, 200 * scale, 10 * scale }, "Camera controls:");
-            GuiLabel((Rectangle){ 15 * scale, 30, 200 * scale, 10 * scale }, "- Move keys: W, A, S, D, Space, Left-Ctrl");
-            GuiLabel((Rectangle){ 15 * scale, 45, 200 * scale, 10 * scale }, "- Look around: arrow keys or mouse");
-            GuiLabel((Rectangle){ 15 * scale, 60, 200 * scale, 10 * scale }, "- Camera mode keys: 1, 2, 3, 4");
-            GuiLabel((Rectangle){ 15 * scale, 75, 200 * scale, 10 * scale }, "- Zoom keys: num-plus, num-minus or mouse scroll");
-            GuiLabel((Rectangle){ 15 * scale, 90, 200 * scale, 10 * scale }, "- Camera projection key: P");
-            GuiLabel((Rectangle){ 15 * scale, 105, 200 * scale, 10 * scale}, "- Toggle fullscreen: F11");
+            GuiLabel((Rectangle){ 15 * scale, 15, 300 * scale, 10 * scale }, "Camera controls:");
+            GuiLabel((Rectangle){ 15 * scale, 30, 300 * scale, 10 * scale }, "- Move keys: W, A, S, D, Space, Left-Ctrl");
+            GuiLabel((Rectangle){ 15 * scale, 45, 300 * scale, 10 * scale }, "- Look around: arrow keys or mouse");
+            GuiLabel((Rectangle){ 15 * scale, 60, 300 * scale, 10 * scale }, "- Camera mode keys: 1, 2, 3, 4");
+            GuiLabel((Rectangle){ 15 * scale, 75, 300 * scale, 10 * scale }, "- Zoom keys: num-plus, num-minus or mouse scroll");
+            GuiLabel((Rectangle){ 15 * scale, 90, 300 * scale, 10 * scale }, "- Camera projection key: P");
+            GuiLabel((Rectangle){ 15 * scale, 105, 300 * scale, 10 * scale}, "- Toggle fullscreen: F11");
+            GuiLabel((Rectangle){ 15 * scale, 120, 300 * scale, 10 * scale}, TextFormat("- GetFPS: %i", GetFPS()));
 
-            GuiLabel((Rectangle){ 610 * scale, 15, 200 * scale, 10 * scale }, "Camera status:");
-            GuiLabel((Rectangle){ 610 * scale, 30, 200 * scale, 10 * scale }, TextFormat("- Mode: %s", (cameraMode == CAMERA_FREE) ? "FREE" :
+            GuiLabel((Rectangle){ 976 * scale, 15, 300 * scale, 10 * scale }, "Camera status:");
+            GuiLabel((Rectangle){ 976 * scale, 30, 300 * scale, 10 * scale }, TextFormat("- Mode: %s", (cameraMode == CAMERA_FREE) ? "FREE" :
                                                                                                           (cameraMode == CAMERA_FIRST_PERSON) ? "FIRST_PERSON" :
                                                                                                           (cameraMode == CAMERA_THIRD_PERSON) ? "THIRD_PERSON" :
                                                                                                           (cameraMode == CAMERA_ORBITAL) ? "ORBITAL" : "CUSTOM"));
-            GuiLabel((Rectangle){ 610 * scale, 45, 200 * scale, 10 * scale }, TextFormat("- Projection: %s", (camera.projection == CAMERA_PERSPECTIVE) ? "PERSPECTIVE" :
+            GuiLabel((Rectangle){ 976 * scale, 45, 300 * scale, 10 * scale }, TextFormat("- Projection: %s", (camera.projection == CAMERA_PERSPECTIVE) ? "PERSPECTIVE" :
                                                                                                                 (camera.projection == CAMERA_ORTHOGRAPHIC) ? "ORTHOGRAPHIC" : "CUSTOM"));
-            GuiLabel((Rectangle){ 610 * scale, 60, 200 * scale, 10 * scale }, TextFormat("- Position: (%06.3f, %06.3f, %06.3f)", camera.position.x, camera.position.y, camera.position.z));
-            GuiLabel((Rectangle){ 610 * scale, 75, 200 * scale, 10 * scale }, TextFormat("- Target: (%06.3f, %06.3f, %06.3f)", camera.target.x, camera.target.y, camera.target.z));
-            GuiLabel((Rectangle){ 610 * scale, 90, 200 * scale, 10 * scale }, TextFormat("- Up: (%06.3f, %06.3f, %06.3f)", camera.up.x, camera.up.y, camera.up.z));
+            GuiLabel((Rectangle){ 976 * scale, 60, 300 * scale, 10 * scale }, TextFormat("- Position: (%06.3f, %06.3f, %06.3f)", camera.position.x, camera.position.y, camera.position.z));
+            GuiLabel((Rectangle){ 976 * scale, 75, 300 * scale, 10 * scale }, TextFormat("- Target: (%06.3f, %06.3f, %06.3f)", camera.target.x, camera.target.y, camera.target.z));
+            GuiLabel((Rectangle){ 976 * scale, 90, 300 * scale, 10 * scale }, TextFormat("- Up: (%06.3f, %06.3f, %06.3f)", camera.up.x, camera.up.y, camera.up.z));
 
         EndDrawing();
         //----------------------------------------------------------------------------------
