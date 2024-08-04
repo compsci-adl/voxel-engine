@@ -5,10 +5,8 @@
 #include <math.h>
 #include "Chunk.h"
 
-#define MAX_COLUMNS 20
-
-const int referenceScreenWidth = 1280;
-const int referenceScreenHeight = 720;
+const int referenceScreenWidth = 800;
+const int referenceScreenHeight = 640;
 
 // Function to calculate the scaling factor
 float GetScalingFactor(int currentWidth, int currentHeight) {

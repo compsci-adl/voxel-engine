@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # Define the installation directory
 set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/install)
+# set(GRAPHICS "GRAPHICS_API_OPENGL_21")
 
 # Add your libraries and include directories
 add_subdirectory(include/raylib)

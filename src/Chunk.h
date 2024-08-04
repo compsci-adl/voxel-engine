@@ -43,13 +43,13 @@ struct Chunk {
         int vertexCount = 0;
         int indexCount = 0;
 
-        int totalVertices = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4;
-        int totalIndices = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6;
+        int totalVertices = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4 * 2;
+        int totalIndices = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6 * 2;
 
         float *normals = (float *)malloc(totalVertices * 3 * sizeof(float));
         float *texcoords = (float *)malloc(totalVertices * 2 * sizeof(float));
-        unsigned short *indices =
-            (unsigned short *)malloc(totalIndices * sizeof(unsigned short));
+        unsigned int *indices =
+            (unsigned int *)malloc(totalIndices * sizeof(unsigned int));
         unsigned char *colors =
             (unsigned char *)malloc(totalVertices * 4 * sizeof(unsigned char));
 
