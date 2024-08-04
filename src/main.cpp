@@ -41,6 +41,7 @@ int main(void)
     int cameraMode = CAMERA_FREE;
 
     DisableCursor();                    // Limit cursor to relative movement inside the window
+    GuiSetStyle(LABEL, TEXT + (guiState * 3), 0xff00ff);
 
     SetTargetFPS(144);                   // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
@@ -91,7 +92,7 @@ int main(void)
                 cameraMode = CAMERA_THIRD_PERSON;
                 // Note: The target distance is related to the render distance in the orthographic projection
                 camera.position = { 0.0f, 2.0f, -100.0f };
-                camera.target = { 0.0f, 2.0f, 0.0f };
+                camera.target = { 0.0f, 0.0f, 0.0f };
                 camera.up = { 0.0f, 1.0f, 0.0f };
                 camera.projection = CAMERA_ORTHOGRAPHIC;
                 camera.fovy = 20.0f; // near plane width in CAMERA_ORTHOGRAPHIC
@@ -128,13 +129,13 @@ int main(void)
         //----------------------------------------------------------------------------------
         BeginDrawing();
 
-            ClearBackground(GRAY);
+            ClearBackground(DARKGRAY);
 
             BeginMode3D(camera);
 
                 // Draw cubes
-                // DrawCube({ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLUE);     // Draw a blue wall
-                // DrawCubeWires({ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLACK);     // Draw a blue wall
+                DrawCube({ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLUE);     // Draw a blue wall
+                DrawCubeWires({ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLACK);     // Draw a blue wall
                 chunk.render();
 
                 // Draw player cube

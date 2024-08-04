@@ -83,8 +83,10 @@ struct Chunk {
 
     // renders the chunk
     void render() {
-        DrawModel(model, {0.0, 0.0, 0.0}, 1.0f, DARKGREEN);
-        DrawModelWires(model, {0.0, 0.0, 0.0}, 1.0f, GREEN);
+        Color color = DARKGREEN;
+        color.a = 100.0f;
+        DrawModel(model, {0.0, 0.0, 0.0}, 1.0f, color);
+        DrawModelWires(model, {0.0, 0.0, 0.0}, 1.0f, WHITE);
     }
 
     void update() {
@@ -96,7 +98,7 @@ struct Chunk {
         for (int x = 0; x < CHUNK_SIZE; x++) {
             for (int y = 0; y < CHUNK_SIZE; y++) {
                 for (int z = 0; z < CHUNK_SIZE; z++) {
-                    // int i = rand() % 2;
+                    int i = rand() % 2;
                     // blocks[x][y][z].isActive = i == 0 ? false : true;
                     blocks[x][y][z].isActive = true;
                 }
