@@ -12,7 +12,7 @@
 */
 
 struct Chunk {
-    static const int CHUNK_SIZE = 10;
+    static const int CHUNK_SIZE = 16;
     Block ***blocks;
     Mesh mesh;
     Model model;
@@ -180,23 +180,23 @@ struct Chunk {
         AddCubeFace(mesh, p1, p2, p3, p4, n1, vCount, iCount, 255.0f, 255.0f,
                     255.0f, 255.0f);
 
-        n1 = (Vector3){0.0f, 0.0f, -1.0f};
+        n1 = {0.0f, 0.0f, -1.0f};
         AddCubeFace(mesh, p5, p6, p7, p8, n1, vCount, iCount, 255.0f, 255.0f,
                     255.0f, 255.0f);
 
-        n1 = (Vector3){1.0f, 0.0f, 0.0f};
+        n1 = {1.0f, 0.0f, 0.0f};
         AddCubeFace(mesh, p2, p5, p8, p3, n1, vCount, iCount, 255.0f, 255.0f,
                     255.0f, 255.0f);
 
-        n1 = (Vector3){-1.0f, 0.0f, 0.0f};
+        n1 = {-1.0f, 0.0f, 0.0f};
         AddCubeFace(mesh, p6, p1, p4, p7, n1, vCount, iCount, 255.0f, 255.0f,
                     255.0f, 255.0f);
 
-        n1 = (Vector3){0.0f, 1.0f, 0.0f};
+        n1 = {0.0f, 1.0f, 0.0f};
         AddCubeFace(mesh, p4, p3, p8, p7, n1, vCount, iCount, 255.0f, 255.0f,
                     255.0f, 255.0f);
 
-        n1 = (Vector3){0.0f, -1.0f, 0.0f};
+        n1 = {0.0f, -1.0f, 0.0f};
         AddCubeFace(mesh, p6, p5, p2, p1, n1, vCount, iCount, 255.0f, 255.0f,
                     255.0f, 255.0f);
     }

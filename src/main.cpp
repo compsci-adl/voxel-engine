@@ -32,9 +32,9 @@ int main(void)
 
     // Define the camera to look into our 3d world (position, target, up vector)
     Camera camera = { 0 };
-    camera.position = (Vector3){ 0.0f, 2.0f, 4.0f };    // Camera position
-    camera.target = (Vector3){ 0.0f, 2.0f, 0.0f };      // Camera looking at point
-    camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // Camera up vector (rotation towards target)
+    camera.position = { 0.0f, 2.0f, 4.0f };    // Camera position
+    camera.target = { 0.0f, 2.0f, 0.0f };      // Camera looking at point
+    camera.up = { 0.0f, 1.0f, 0.0f };          // Camera up vector (rotation towards target)
     camera.fovy = 60.0f;                                // Camera field-of-view Y
     camera.projection = CAMERA_PERSPECTIVE;             // Camera projection type
 
@@ -61,25 +61,25 @@ int main(void)
         if (IsKeyPressed(KEY_ONE))
         {
             cameraMode = CAMERA_FREE;
-            camera.up = (Vector3){ 0.0f, 1.0f, 0.0f }; // Reset roll
+            camera.up = { 0.0f, 1.0f, 0.0f }; // Reset roll
         }
 
         if (IsKeyPressed(KEY_TWO))
         {
             cameraMode = CAMERA_FIRST_PERSON;
-            camera.up = (Vector3){ 0.0f, 1.0f, 0.0f }; // Reset roll
+            camera.up = { 0.0f, 1.0f, 0.0f }; // Reset roll
         }
 
         if (IsKeyPressed(KEY_THREE))
         {
             cameraMode = CAMERA_THIRD_PERSON;
-            camera.up = (Vector3){ 0.0f, 1.0f, 0.0f }; // Reset roll
+            camera.up = { 0.0f, 1.0f, 0.0f }; // Reset roll
         }
 
         if (IsKeyPressed(KEY_FOUR))
         {
             cameraMode = CAMERA_ORBITAL;
-            camera.up = (Vector3){ 0.0f, 1.0f, 0.0f }; // Reset roll
+            camera.up = { 0.0f, 1.0f, 0.0f }; // Reset roll
         }
 
         // Switch camera projection
@@ -90,9 +90,9 @@ int main(void)
                 // Create isometric view
                 cameraMode = CAMERA_THIRD_PERSON;
                 // Note: The target distance is related to the render distance in the orthographic projection
-                camera.position = (Vector3){ 0.0f, 2.0f, -100.0f };
-                camera.target = (Vector3){ 0.0f, 2.0f, 0.0f };
-                camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
+                camera.position = { 0.0f, 2.0f, -100.0f };
+                camera.target = { 0.0f, 2.0f, 0.0f };
+                camera.up = { 0.0f, 1.0f, 0.0f };
                 camera.projection = CAMERA_ORTHOGRAPHIC;
                 camera.fovy = 20.0f; // near plane width in CAMERA_ORTHOGRAPHIC
                 CameraYaw(&camera, -135 * DEG2RAD, true);
@@ -102,9 +102,9 @@ int main(void)
             {
                 // Reset to default view
                 cameraMode = CAMERA_THIRD_PERSON;
-                camera.position = (Vector3){ 0.0f, 2.0f, 10.0f };
-                camera.target = (Vector3){ 0.0f, 2.0f, 0.0f };
-                camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
+                camera.position = { 0.0f, 2.0f, 10.0f };
+                camera.target = { 0.0f, 2.0f, 0.0f };
+                camera.up = { 0.0f, 1.0f, 0.0f };
                 camera.projection = CAMERA_PERSPECTIVE;
                 camera.fovy = 60.0f;
             }
@@ -128,13 +128,13 @@ int main(void)
         //----------------------------------------------------------------------------------
         BeginDrawing();
 
-            ClearBackground(RAYWHITE);
+            ClearBackground(GRAY);
 
             BeginMode3D(camera);
 
                 // Draw cubes
-                // DrawCube((Vector3){ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLUE);     // Draw a blue wall
-                // DrawCubeWires((Vector3){ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLACK);     // Draw a blue wall
+                // DrawCube({ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLUE);     // Draw a blue wall
+                // DrawCubeWires({ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLACK);     // Draw a blue wall
                 chunk.render();
 
                 // Draw player cube
@@ -154,25 +154,25 @@ int main(void)
             float scale = GetScalingFactor(currentScreenWidth, currentScreenHeight);
 
             // GUI controls using raygui
-            GuiLabel((Rectangle){ 15 * scale, 15, 300 * scale, 10 * scale }, "Camera controls:");
-            GuiLabel((Rectangle){ 15 * scale, 30, 300 * scale, 10 * scale }, "- Move keys: W, A, S, D, Space, Left-Ctrl");
-            GuiLabel((Rectangle){ 15 * scale, 45, 300 * scale, 10 * scale }, "- Look around: arrow keys or mouse");
-            GuiLabel((Rectangle){ 15 * scale, 60, 300 * scale, 10 * scale }, "- Camera mode keys: 1, 2, 3, 4");
-            GuiLabel((Rectangle){ 15 * scale, 75, 300 * scale, 10 * scale }, "- Zoom keys: num-plus, num-minus or mouse scroll");
-            GuiLabel((Rectangle){ 15 * scale, 90, 300 * scale, 10 * scale }, "- Camera projection key: P");
-            GuiLabel((Rectangle){ 15 * scale, 105, 300 * scale, 10 * scale}, "- Toggle fullscreen: F11");
-            GuiLabel((Rectangle){ 15 * scale, 120, 300 * scale, 10 * scale}, TextFormat("- GetFPS: %i", GetFPS()));
+            GuiLabel({ 15 * scale, 15, 300 * scale, 10 * scale }, "Camera controls:");
+            GuiLabel({ 15 * scale, 30, 300 * scale, 10 * scale }, "- Move keys: W, A, S, D, Space, Left-Ctrl");
+            GuiLabel({ 15 * scale, 45, 300 * scale, 10 * scale }, "- Look around: arrow keys or mouse");
+            GuiLabel({ 15 * scale, 60, 300 * scale, 10 * scale }, "- Camera mode keys: 1, 2, 3, 4");
+            GuiLabel({ 15 * scale, 75, 300 * scale, 10 * scale }, "- Zoom keys: num-plus, num-minus or mouse scroll");
+            GuiLabel({ 15 * scale, 90, 300 * scale, 10 * scale }, "- Camera projection key: P");
+            GuiLabel({ 15 * scale, 105, 300 * scale, 10 * scale}, "- Toggle fullscreen: F11");
+            GuiLabel({ 15 * scale, 120, 300 * scale, 10 * scale}, TextFormat("- GetFPS: %i", GetFPS()));
 
-            GuiLabel((Rectangle){ 976 * scale, 15, 300 * scale, 10 * scale }, "Camera status:");
-            GuiLabel((Rectangle){ 976 * scale, 30, 300 * scale, 10 * scale }, TextFormat("- Mode: %s", (cameraMode == CAMERA_FREE) ? "FREE" :
+            GuiLabel({ 976 * scale, 15, 300 * scale, 10 * scale }, "Camera status:");
+            GuiLabel({ 976 * scale, 30, 300 * scale, 10 * scale }, TextFormat("- Mode: %s", (cameraMode == CAMERA_FREE) ? "FREE" :
                                                                                                           (cameraMode == CAMERA_FIRST_PERSON) ? "FIRST_PERSON" :
                                                                                                           (cameraMode == CAMERA_THIRD_PERSON) ? "THIRD_PERSON" :
                                                                                                           (cameraMode == CAMERA_ORBITAL) ? "ORBITAL" : "CUSTOM"));
-            GuiLabel((Rectangle){ 976 * scale, 45, 300 * scale, 10 * scale }, TextFormat("- Projection: %s", (camera.projection == CAMERA_PERSPECTIVE) ? "PERSPECTIVE" :
+            GuiLabel({ 976 * scale, 45, 300 * scale, 10 * scale }, TextFormat("- Projection: %s", (camera.projection == CAMERA_PERSPECTIVE) ? "PERSPECTIVE" :
                                                                                                                 (camera.projection == CAMERA_ORTHOGRAPHIC) ? "ORTHOGRAPHIC" : "CUSTOM"));
-            GuiLabel((Rectangle){ 976 * scale, 60, 300 * scale, 10 * scale }, TextFormat("- Position: (%06.3f, %06.3f, %06.3f)", camera.position.x, camera.position.y, camera.position.z));
-            GuiLabel((Rectangle){ 976 * scale, 75, 300 * scale, 10 * scale }, TextFormat("- Target: (%06.3f, %06.3f, %06.3f)", camera.target.x, camera.target.y, camera.target.z));
-            GuiLabel((Rectangle){ 976 * scale, 90, 300 * scale, 10 * scale }, TextFormat("- Up: (%06.3f, %06.3f, %06.3f)", camera.up.x, camera.up.y, camera.up.z));
+            GuiLabel({ 976 * scale, 60, 300 * scale, 10 * scale }, TextFormat("- Position: (%06.3f, %06.3f, %06.3f)", camera.position.x, camera.position.y, camera.position.z));
+            GuiLabel({ 976 * scale, 75, 300 * scale, 10 * scale }, TextFormat("- Target: (%06.3f, %06.3f, %06.3f)", camera.target.x, camera.target.y, camera.target.z));
+            GuiLabel({ 976 * scale, 90, 300 * scale, 10 * scale }, TextFormat("- Up: (%06.3f, %06.3f, %06.3f)", camera.up.x, camera.up.y, camera.up.z));
 
         EndDrawing();
         //----------------------------------------------------------------------------------

@@ -1,11 +1,13 @@
 #ifndef CHUNKMANAGER_H
 #define CHUNKMANAGER_H
 #include <vector>
+#include "Chunk.h"
+#include "raylib.h"
 
 typedef std::vector<Chunk*> ChunkList;
 
 struct ChunkManager {
-    static int ASYNC_NUM_CHUNKS_PER_FRAME = 5;
+    static int const ASYNC_NUM_CHUNKS_PER_FRAME = 5;
     ChunkManager();
     ~ChunkManager();
     void Update();
