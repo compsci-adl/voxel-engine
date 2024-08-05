@@ -22,10 +22,10 @@ struct hashFunc {
     }
 };
 
-struct equalsFunc{
-  bool operator()( const TPoint3D& lhs, const TPoint3D& rhs ) const{
-    return (lhs.x == rhs.x) && (lhs.y == rhs.y) && (lhs.z == rhs.z);
-  }
+struct equalsFunc {
+    bool operator()(const TPoint3D &lhs, const TPoint3D &rhs) const {
+        return (lhs.x == rhs.x) && (lhs.y == rhs.y) && (lhs.z == rhs.z);
+    }
 };
 
 typedef std::vector<Chunk *> ChunkList;
@@ -65,14 +65,12 @@ ChunkManager::ChunkManager(unsigned int _chunkAddDistance) {
     genChunk = true;
 }
 
-ChunkManager::~ChunkManager() {
-    chunks.clear();
-}
+ChunkManager::~ChunkManager() { chunks.clear(); }
 
 void ChunkManager::Update(float dt, Vector3 newCameraPosition,
                           Vector3 newCameraLookAt) {
 
-    if(genChunk) {
+    if (genChunk) {
         UpdateAsyncChunker(newCameraPosition);
     }
     UpdateLoadList();
@@ -89,49 +87,63 @@ void ChunkManager::Update(float dt, Vector3 newCameraPosition,
     cameraLookAt = newCameraLookAt;
 }
 
-int roundUp(int numToRound, int multiple) {
-    if (multiple < 0)
-        return 0;
-    int isPositive = (int)(numToRound >= 0);
-    return ((numToRound + isPositive * (multiple - 1)) / multiple) * multiple;
+float roundUp(float number, float fixedBase) {
+    if (fixedBase != 0 && number != 0) {
+        float sign = number > 0 ? 1 : -1;
+        number *= sign;
+        number /= fixedBase;
+        int fixedPoint = (int)ceil(number);
+        number = fixedPoint * fixedBase;
+        number *= sign;
+    }
+    return number;
 }
 
 void ChunkManager::UpdateAsyncChunker(Vector3 newCameraPosition) {
     if (Vector3Equals(newCameraPosition, cameraPosition)) {
         return;
     }
-    // generate chunks inside render distance rectangle
-    // Rectangle renderRect = {newCameraPosition.x - chunkAddDistance,
-    //                         newCameraPosition.z + chunkAddDistance,
-    //                         chunkAddDistance, chunkAddDistance};
-    ChunkList::iterator iterator;
-    int startX =
-        roundUp(newCameraPosition.x - (chunkAddDistance * Chunk::CHUNK_SIZE),
-                Chunk::CHUNK_SIZE);
-    int endX =
-        roundUp(newCameraPosition.x + (chunkAddDistance * Chunk::CHUNK_SIZE),
-                Chunk::CHUNK_SIZE);
-    int startY =
-        roundUp(newCameraPosition.y - (chunkAddDistance * Chunk::CHUNK_SIZE),
-                Chunk::CHUNK_SIZE);
-    int endY =
-        roundUp(newCameraPosition.y + (chunkAddDistance * Chunk::CHUNK_SIZE),
-                Chunk::CHUNK_SIZE);
-    int startZ =
-        roundUp(newCameraPosition.z - (chunkAddDistance * Chunk::CHUNK_SIZE),
-                Chunk::CHUNK_SIZE);
-    int endZ =
-        roundUp(newCameraPosition.z + (chunkAddDistance * Chunk::CHUNK_SIZE),
-                Chunk::CHUNK_SIZE);
 
-    for (float i = startX; i < endX; i += Chunk::CHUNK_SIZE) {
-        for (float j = startY; j < endY; j += Chunk::CHUNK_SIZE) {
-            for (float k = startZ; k < endZ; k += Chunk::CHUNK_SIZE) {
+    // generate chunks inside render distance cube
+    ChunkList::iterator iterator;
+    float startX = roundUp(newCameraPosition.x -
+                               ((float)chunkAddDistance * Chunk::CHUNK_SIZE *
+                                Block::BLOCK_RENDER_SIZE),
+                           Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
+    float endX = roundUp(newCameraPosition.x +
+                             ((float)chunkAddDistance * Chunk::CHUNK_SIZE *
+                              Block::BLOCK_RENDER_SIZE),
+                         Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
+    float startY = roundUp(newCameraPosition.y -
+                               ((float)chunkAddDistance * Chunk::CHUNK_SIZE *
+                                Block::BLOCK_RENDER_SIZE),
+                           Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
+    float endY = roundUp(newCameraPosition.y +
+                             ((float)chunkAddDistance * Chunk::CHUNK_SIZE *
+                              Block::BLOCK_RENDER_SIZE),
+                         Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
+    float startZ = roundUp(newCameraPosition.z -
+                               ((float)chunkAddDistance * Chunk::CHUNK_SIZE *
+                                Block::BLOCK_RENDER_SIZE),
+                           Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
+    float endZ = roundUp(newCameraPosition.z +
+                             ((float)chunkAddDistance * Chunk::CHUNK_SIZE *
+                              Block::BLOCK_RENDER_SIZE),
+                         Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
+
+    // printf("start: (%06.3f, %06.3f), end: (%06.3f, %06.3f)", startX, startY,
+    //    endX, endY);
+    for (float i = startX; i < endX;
+         i += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
+        for (float j = startY; j < endY;
+             j += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
+            for (float k = startZ; k < endZ;
+                 k += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
                 // generate flat for now
-                if (j > 1) {
+                if (j > -Block::BLOCK_RENDER_SIZE) {
                     continue;
                 }
-                TPoint3D coords = {Block::BLOCK_RENDER_SIZE * (float)i, Block::BLOCK_RENDER_SIZE * (float)j, Block::BLOCK_RENDER_SIZE * (float)k};
+                TPoint3D coords = {i, j, k};
                 if (chunks.find(coords) != chunks.end()) {
                     Chunk *currChunk = chunks.at(coords);
                     if (!currChunk->isLoaded()) {
@@ -190,8 +202,8 @@ void ChunkManager::UpdateRenderList() {
     // chunks should be rendered
     chunkRenderList.clear();
     ChunkList::iterator iterator;
-    for (iterator = chunkVisibilityList.begin(); iterator != chunkVisibilityList.end();
-         ++iterator) {
+    for (iterator = chunkVisibilityList.begin();
+         iterator != chunkVisibilityList.end(); ++iterator) {
         Chunk *pChunk = (*iterator);
         if (pChunk != NULL) {
             if (pChunk->isLoaded() && pChunk->isSetup()) {

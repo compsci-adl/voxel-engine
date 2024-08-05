@@ -13,7 +13,7 @@
 */
 
 struct Chunk {
-    static const int CHUNK_SIZE = 2;
+    static const int CHUNK_SIZE = 8;
     Block ***blocks;
     Mesh mesh;
     Model model;
@@ -105,7 +105,7 @@ struct Chunk {
     // renders the chunk
     void render() {
         Color color = DARKGREEN;
-        color.a = 100.0f;
+        // color.a = 100.0f;
         DrawModel(model, {0.0, 0.0, 0.0}, 1.0f, color);
         DrawModelWires(model, {0.0, 0.0, 0.0}, 1.0f, WHITE);
     }
@@ -114,9 +114,9 @@ struct Chunk {
         for (int x = 0; x < CHUNK_SIZE; x++) {
             for (int y = 0; y < CHUNK_SIZE; y++) {
                 for (int z = 0; z < CHUNK_SIZE; z++) {
-                    int i = rand() % 2;
-                    blocks[x][y][z].isActive = i == 0 ? false : true;
-                    // blocks[x][y][z].isActive = true;
+                    // int i = rand() % 2;
+                    // blocks[x][y][z].isActive = i == 0 ? false : true;
+                    blocks[x][y][z].isActive = true;
                 }
             }
         }
