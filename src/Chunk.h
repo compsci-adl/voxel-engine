@@ -30,6 +30,8 @@ struct Chunk {
             }
         }
         chunkPosition = position;
+        hasSetup = false;
+        loaded = false;
     };
 
     ~Chunk() {

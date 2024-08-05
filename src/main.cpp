@@ -137,7 +137,9 @@ int main(void)
             BeginMode3D(camera);
 
                 // Draw cubes
-                // DrawCube({ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLUE);     // Draw a blue wall
+                // Color col = BLUE;
+                // col.a = 100.0f;
+                // DrawCube({ 0.0f, 0.0f, 0.0f }, 10.0f, 10.0f, 10.0f, col);     // Draw a blue wall
                 DrawCubeWires({ 0.0f, 0.0f, 0.0f }, 10.0f, 10.0f, 10.0f, BLACK);     // Draw a blue wall
                 // chunk.render();
                 chunkManager.Update(0.0, camera.position, camera.target);
@@ -168,8 +170,9 @@ int main(void)
             GuiLabel({ 15 * scale, 90, 300 * scale, 10 * scale }, "- Camera projection key: P");
             GuiLabel({ 15 * scale, 105, 300 * scale, 10 * scale}, "- Toggle Chunk Gen: X");
             GuiLabel({ 15 * scale, 120, 300 * scale, 10 * scale}, "- Toggle fullscreen: F11");
-            GuiLabel({ 15 * scale, 135, 300 * scale, 10 * scale}, TextFormat("- GetFPS: %i", GetFPS()));
-            GuiLabel({ 15 * scale, 150, 300 * scale, 10 * scale}, TextFormat("- Chunk Gen: %s", chunkManager.genChunk ? "On" : "Off"));
+            GuiLabel({ 15 * scale, 135, 300 * scale, 10 * scale}, TextFormat("- FPS: %i", GetFPS()));
+            GuiLabel({ 15 * scale, 150, 300 * scale, 10 * scale}, TextFormat("- Frametime: %fms", GetFrameTime() * 1000));
+            GuiLabel({ 15 * scale, 165, 300 * scale, 10 * scale}, TextFormat("- Chunk Gen: %s", chunkManager.genChunk ? "On" : "Off"));
 
             GuiLabel({ 976 * scale, 15, 300 * scale, 10 * scale }, "Camera status:");
             GuiLabel({ 976 * scale, 30, 300 * scale, 10 * scale }, TextFormat("- Mode: %s", (cameraMode == CAMERA_FREE) ? "FREE" :

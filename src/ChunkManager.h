@@ -8,7 +8,7 @@
 
 class TPoint3D {
   public:
-    TPoint3D(float x, float y, float z) : x(x), y(y), z(z){};
+    TPoint3D(float x, float y, float z) : x(x), y(y), z(z) {};
 
     float x, y, z;
 };
@@ -63,6 +63,7 @@ struct ChunkManager {
 ChunkManager::ChunkManager(unsigned int _chunkAddDistance) {
     chunkAddDistance = _chunkAddDistance;
     genChunk = true;
+    bool forceVisibilityUpdate = true;
 }
 
 ChunkManager::~ChunkManager() { chunks.clear(); }
@@ -79,10 +80,10 @@ void ChunkManager::Update(float dt, Vector3 newCameraPosition,
     // UpdateFlagsList();
     // UpdateUnloadList();
     UpdateVisibilityList(newCameraPosition);
-    if (!Vector3Equals(cameraPosition, newCameraPosition) ||
-        !Vector3Equals(cameraLookAt, newCameraLookAt)) {
-        UpdateRenderList();
-    }
+    // if (!Vector3Equals(cameraPosition, newCameraPosition) ||
+    //     !Vector3Equals(cameraLookAt, newCameraLookAt)) {
+    UpdateRenderList();
+    // }
     cameraPosition = newCameraPosition;
     cameraLookAt = newCameraLookAt;
 }
