@@ -2,6 +2,7 @@
 #define CHUNK_H
 #include "Block.h"
 #include "raylib.h"
+#include "raymath.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -12,13 +13,13 @@
 */
 
 struct Chunk {
-    static const int CHUNK_SIZE = 16;
+    static const int CHUNK_SIZE = 2;
     Block ***blocks;
     Mesh mesh;
     Model model;
-    bool isLoaded;
+    Vector3 chunkPosition;
 
-    Chunk() {
+    Chunk(Vector3 position) {
         blocks = new Block **[CHUNK_SIZE];
         for (int i = 0; i < CHUNK_SIZE; i++) {
             blocks[i] = new Block *[CHUNK_SIZE];
@@ -26,6 +27,7 @@ struct Chunk {
                 blocks[i][j] = new Block[CHUNK_SIZE];
             }
         }
+        chunkPosition = position;
     };
 
     ~Chunk() {
@@ -71,6 +73,7 @@ struct Chunk {
                         Vector3 pos = {Block::BLOCK_RENDER_SIZE * (float)x,
                                        Block::BLOCK_RENDER_SIZE * (float)y,
                                        Block::BLOCK_RENDER_SIZE * (float)z};
+                        pos = Vector3Add(pos, chunkPosition);
                         CreateCube(&mesh, pos, Block::BLOCK_RENDER_SIZE,
                                    &mesh.vertexCount, &indexCount);
                     }
@@ -79,6 +82,24 @@ struct Chunk {
         }
 
         mesh.triangleCount = indexCount / 3;
+        UploadMesh(&mesh, false);
+        model = LoadModelFromMesh(mesh);
+    }
+
+    void load() {
+        loaded = true;
+    }
+
+    void unload() {
+        UnloadModel(model);
+        UnloadMesh(mesh);
+        loaded = false;
+    }
+
+    void setup() {
+        randomize();
+        createMesh();
+        hasSetup = true;
     }
 
     // renders the chunk
@@ -89,18 +110,13 @@ struct Chunk {
         DrawModelWires(model, {0.0, 0.0, 0.0}, 1.0f, WHITE);
     }
 
-    void update() {
-        UploadMesh(&mesh, false);
-        model = LoadModelFromMesh(mesh);
-    }
-
     void randomize() {
         for (int x = 0; x < CHUNK_SIZE; x++) {
             for (int y = 0; y < CHUNK_SIZE; y++) {
                 for (int z = 0; z < CHUNK_SIZE; z++) {
                     int i = rand() % 2;
-                    // blocks[x][y][z].isActive = i == 0 ? false : true;
-                    blocks[x][y][z].isActive = true;
+                    blocks[x][y][z].isActive = i == 0 ? false : true;
+                    // blocks[x][y][z].isActive = true;
                 }
             }
         }
@@ -202,6 +218,18 @@ struct Chunk {
         AddCubeFace(mesh, p6, p5, p2, p1, n1, vCount, iCount, 255.0f, 255.0f,
                     255.0f, 255.0f);
     }
+
+    bool isLoaded() {
+        return loaded;
+    }
+
+    bool isSetup() {
+        return hasSetup;
+    }
+
+    private:
+        bool loaded;
+        bool hasSetup;
 };
 
 #endif // CHUNK_H

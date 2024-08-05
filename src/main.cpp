@@ -3,7 +3,7 @@
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 #include <math.h>
-#include "Chunk.h"
+#include "ChunkManager.h"
 
 const int referenceScreenWidth = 800;
 const int referenceScreenHeight = 640;
@@ -41,15 +41,16 @@ int main(void)
     DisableCursor();                    // Limit cursor to relative movement inside the window
     GuiSetStyle(LABEL, TEXT + (guiState * 3), 0xff00ff);
 
-    SetTargetFPS(144);                   // Set our game to run at 60 frames-per-second
+    // SetTargetFPS(144);                   // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
 
     bool fullscreen = false;
 
-    Chunk chunk = Chunk();
-    chunk.randomize();
-    chunk.createMesh();
-    chunk.update();
+    // Chunk chunk = Chunk({0.0, 0.0, 0.0});
+    // chunk.randomize();
+    // chunk.load();
+    // chunk.setup();
+    ChunkManager chunkManager = ChunkManager(3);
 
     // Main game loop
     while (!WindowShouldClose())        // Detect window close button or ESC key
@@ -116,6 +117,10 @@ int main(void)
             ToggleFullscreen();
         }
 
+        if (IsKeyPressed(KEY_X)) {
+            chunkManager.genChunk = !chunkManager.genChunk;
+        }
+
         // Update camera computes movement internally depending on the camera mode
         // Some default standard keyboard/mouse inputs are hardcoded to simplify use
         // For advanced camera controls, it's recommended to compute camera movement manually
@@ -132,9 +137,11 @@ int main(void)
             BeginMode3D(camera);
 
                 // Draw cubes
-                DrawCube({ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLUE);     // Draw a blue wall
+                // DrawCube({ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLUE);     // Draw a blue wall
                 DrawCubeWires({ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLACK);     // Draw a blue wall
-                chunk.render();
+                // chunk.render();
+                chunkManager.Update(0.0, camera.position, camera.target);
+                chunkManager.Render();
 
                 // Draw player cube
                 if (cameraMode == CAMERA_THIRD_PERSON)
