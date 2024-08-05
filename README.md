@@ -26,7 +26,7 @@ git submodule update --init
 
 ## Contributing
 
-Our voxel engine is currently a work-in-progress, but we still welcome contributions. If you find any issues, have suggestions, or want to request a feature, please follow our [Contributing Guidelines](CONTRIBUTING.md).
+Our voxel engine is currently a work-in-progress, but we still welcome contributions. If you find any issues, have suggestions, or want to request a feature, please follow our [Contributing Guidelines](https://github.com/compsci-adl/.github/blob/main/CONTRIBUTING.md).
 
 ## License
 
