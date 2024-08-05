@@ -8,8 +8,10 @@
 
 /*
     TODO LIST:
+    - chunk updates
     - chunk render func inside our outside? how do we want to style our
    codebase?
+    - chunk unloading?
 */
 
 struct Chunk {
@@ -69,14 +71,15 @@ struct Chunk {
                 for (int z = 0; z < CHUNK_SIZE; z++) {
                     // TODO: im storing the pointers to the meshes in RAM - is
                     // this how it should be done?
-                    if (blocks[x][y][z].isActive) {
-                        Vector3 pos = {Block::BLOCK_RENDER_SIZE * (float)x,
-                                       Block::BLOCK_RENDER_SIZE * (float)y,
-                                       Block::BLOCK_RENDER_SIZE * (float)z};
-                        pos = Vector3Add(pos, chunkPosition);
-                        CreateCube(&mesh, pos, Block::BLOCK_RENDER_SIZE,
-                                   &mesh.vertexCount, &indexCount);
+                    if (!blocks[x][y][z].isActive) {
+                        continue;
                     }
+                    Vector3 pos = {Block::BLOCK_RENDER_SIZE * (float)x,
+                                   Block::BLOCK_RENDER_SIZE * (float)y,
+                                   Block::BLOCK_RENDER_SIZE * (float)z};
+                    pos = Vector3Add(pos, chunkPosition);
+                    CreateCube(&mesh, pos, Block::BLOCK_RENDER_SIZE,
+                               &mesh.vertexCount, &indexCount, x, y, z);
                 }
             }
         }
@@ -86,9 +89,7 @@ struct Chunk {
         model = LoadModelFromMesh(mesh);
     }
 
-    void load() {
-        loaded = true;
-    }
+    void load() { loaded = true; }
 
     void unload() {
         UnloadModel(model);
@@ -105,7 +106,7 @@ struct Chunk {
     // renders the chunk
     void render() {
         Color color = DARKGREEN;
-        // color.a = 100.0f;
+        color.a = 100.0f;
         DrawModel(model, {0.0, 0.0, 0.0}, 1.0f, color);
         DrawModelWires(model, {0.0, 0.0, 0.0}, 1.0f, WHITE);
     }
@@ -114,8 +115,8 @@ struct Chunk {
         for (int x = 0; x < CHUNK_SIZE; x++) {
             for (int y = 0; y < CHUNK_SIZE; y++) {
                 for (int z = 0; z < CHUNK_SIZE; z++) {
-                    // int i = rand() % 2;
-                    // blocks[x][y][z].isActive = i == 0 ? false : true;
+                    // int i = rand() % 2; blocks[x][y][z].isActive = i == 0 ?
+                    // false : true;
                     blocks[x][y][z].isActive = true;
                 }
             }
@@ -182,7 +183,7 @@ struct Chunk {
     }
 
     void CreateCube(Mesh *mesh, Vector3 position, float size, int *vCount,
-                    int *iCount) {
+                    int *iCount, int blockX, int blockY, int blockZ) {
         float hs = size / 2.0f;
 
         Vector3 p1 = {position.x - hs, position.y - hs, position.z + hs};
@@ -194,42 +195,70 @@ struct Chunk {
         Vector3 p7 = {position.x - hs, position.y + hs, position.z - hs};
         Vector3 p8 = {position.x + hs, position.y + hs, position.z - hs};
 
+        bool lDefault = false;
+        bool lXNegative = lDefault;
+        if (blockX > 0)
+            lXNegative = blocks[blockX - 1][blockY][blockZ].isActive;
+        bool lXPositive = lDefault;
+        if (blockX < CHUNK_SIZE - 1)
+            lXPositive = blocks[blockX + 1][blockY][blockZ].isActive;
+        bool lYNegative = lDefault;
+        if (blockY > 0)
+            lYNegative = blocks[blockX][blockY - 1][blockZ].isActive;
+        bool lYPositive = lDefault;
+        if (blockY < CHUNK_SIZE - 1)
+            lYPositive = blocks[blockX][blockY + 1][blockZ].isActive;
+        bool lZNegative = lDefault;
+        if (blockZ > 0)
+            lZNegative = blocks[blockX][blockY][blockZ - 1].isActive;
+        bool lZPositive = lDefault;
+        if (blockZ < CHUNK_SIZE - 1)
+            lZPositive = blocks[blockX][blockY][blockZ + 1].isActive;
+
         Vector3 n1 = {0.0f, 0.0f, 1.0f};
-        AddCubeFace(mesh, p1, p2, p3, p4, n1, vCount, iCount, 255.0f, 255.0f,
-                    255.0f, 255.0f);
+        if (!lZPositive) {
+            AddCubeFace(mesh, p1, p2, p3, p4, n1, vCount, iCount, 255.0f,
+                        255.0f, 255.0f, 255.0f);
+        }
 
-        n1 = {0.0f, 0.0f, -1.0f};
-        AddCubeFace(mesh, p5, p6, p7, p8, n1, vCount, iCount, 255.0f, 255.0f,
-                    255.0f, 255.0f);
+        if (!lZNegative) {
+            n1 = {0.0f, 0.0f, -1.0f};
+            AddCubeFace(mesh, p5, p6, p7, p8, n1, vCount, iCount, 255.0f,
+                        255.0f, 255.0f, 255.0f);
+        }
 
-        n1 = {1.0f, 0.0f, 0.0f};
-        AddCubeFace(mesh, p2, p5, p8, p3, n1, vCount, iCount, 255.0f, 255.0f,
-                    255.0f, 255.0f);
+        if (!lXPositive) {
+            n1 = {1.0f, 0.0f, 0.0f};
+            AddCubeFace(mesh, p2, p5, p8, p3, n1, vCount, iCount, 255.0f,
+                        255.0f, 255.0f, 255.0f);
+        }
 
-        n1 = {-1.0f, 0.0f, 0.0f};
-        AddCubeFace(mesh, p6, p1, p4, p7, n1, vCount, iCount, 255.0f, 255.0f,
-                    255.0f, 255.0f);
+        if (!lXNegative) {
+            n1 = {-1.0f, 0.0f, 0.0f};
+            AddCubeFace(mesh, p6, p1, p4, p7, n1, vCount, iCount, 255.0f,
+                        255.0f, 255.0f, 255.0f);
+        }
 
-        n1 = {0.0f, 1.0f, 0.0f};
-        AddCubeFace(mesh, p4, p3, p8, p7, n1, vCount, iCount, 255.0f, 255.0f,
-                    255.0f, 255.0f);
+        if (!lYPositive) {
+            n1 = {0.0f, 1.0f, 0.0f};
+            AddCubeFace(mesh, p4, p3, p8, p7, n1, vCount, iCount, 255.0f,
+                        255.0f, 255.0f, 255.0f);
+        }
 
-        n1 = {0.0f, -1.0f, 0.0f};
-        AddCubeFace(mesh, p6, p5, p2, p1, n1, vCount, iCount, 255.0f, 255.0f,
-                    255.0f, 255.0f);
+        if (!lYNegative) {
+            n1 = {0.0f, -1.0f, 0.0f};
+            AddCubeFace(mesh, p6, p5, p2, p1, n1, vCount, iCount, 255.0f,
+                        255.0f, 255.0f, 255.0f);
+        }
     }
 
-    bool isLoaded() {
-        return loaded;
-    }
+    bool isLoaded() { return loaded; }
 
-    bool isSetup() {
-        return hasSetup;
-    }
+    bool isSetup() { return hasSetup; }
 
-    private:
-        bool loaded;
-        bool hasSetup;
+  private:
+    bool loaded;
+    bool hasSetup;
 };
 
 #endif // CHUNK_H

@@ -227,29 +227,4 @@ void ChunkManager::Render() {
     }
 }
 
-// void ChunkManager::UpdateRenderList() {
-//   // Clear the render list each frame BEFORE we do our tests to see what
-//   chunks should be rendered chunkRenderList.clear(); ChunkList::iterator
-//   iterator; for (iterator = chunkRenderList.begin(); iterator !=
-//   chunkRenderList.end(); ++iterator) {
-//     Chunk * pChunk = ( * iterator);
-//     if (pChunk != NULL) {
-//       if (pChunk -> isLoaded() && pChunk -> isSetup()) {
-//         if (pChunk -> ShouldRender()) // Early flags check so we don't
-//         always have to do the frustum check...
-//         {// Check if this chunk is inside the camera frustum
-//           float c_offset = (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE)
-//           - Block::BLOCK_RENDER_SIZE; Vector3d chunkCenter = pChunk ->
-//           GetPosition() + Vector3d(c_offset, c_offset, c_offset); float
-//           c_size = Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE; if
-//           (m_pRenderer -> CubeInFrustum(m_pRenderer ->
-//           GetActiveViewPort(), chunkCenter, c_size, c_size, c_size)) {
-//             m_vpChunkRenderList.push_back(pChunk);
-//           }
-//         }
-//       }
-//     }
-//   }
-// }
-
 #endif // CHUNK_MANAGER

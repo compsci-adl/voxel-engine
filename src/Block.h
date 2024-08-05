@@ -14,7 +14,7 @@ enum BlockType {
 };
 
 struct Block {
-    static constexpr float BLOCK_RENDER_SIZE = 0.2f;
+    static constexpr float BLOCK_RENDER_SIZE = 1.0f;
     bool isActive;
     Block(){};
     ~Block(){};
