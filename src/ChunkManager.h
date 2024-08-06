@@ -2,17 +2,18 @@
 #define CHUNKMANAGER_H
 #include "Chunk.h"
 #include "raylib.h"
+#include <future>
 #include <raymath.h>
 #include <unordered_map>
 #include <vector>
-// #include <future>
 
 /*
     TODO LIST:
     - feat: chunk updates
     - feat: async chunk loading?
     - feat: chunk unloading?
-    - fix: some chunks (def. first one) has weird alpha rendering bug - need to investigate the cause of this later.
+    - fix: some chunks (def. first one) has weird alpha rendering bug - need to
+   investigate the cause of this later.
 */
 
 class TPoint3D {
@@ -41,7 +42,7 @@ typedef std::vector<Chunk *> ChunkList;
 typedef std::unordered_map<TPoint3D, Chunk *, hashFunc, equalsFunc> ChunkMap;
 
 struct ChunkManager {
-    static int const ASYNC_NUM_CHUNKS_PER_FRAME = 5;
+    static int const ASYNC_NUM_CHUNKS_PER_FRAME = 12;
     ChunkManager(unsigned int chunkAddDistance);
     ~ChunkManager();
     void Update(float dt, Vector3 newCameraPosition, Vector3 newCameraLookAt);
@@ -51,17 +52,20 @@ struct ChunkManager {
     void UpdateRebuildList();
     void UpdateFlagsList();
     void UpdateUnloadList(Vector3 newCameraPosition);
-    void UpdateRenderList();
     void UpdateVisibilityList(Vector3 newCameraPosition);
+    void UpdateRenderList();
+
+    void QueueChunkToRebuild(Chunk *chunk);
     std::pair<Vector3, Vector3> GetChunkRange(Vector3 newCameraPosition);
     void Render();
 
     ChunkMap chunks;
     ChunkList chunkLoadList;
+    ChunkList chunkSetupList;
+    ChunkList chunkRebuildList;
     ChunkList chunkRenderList;
     ChunkList chunkUnloadList;
     ChunkList chunkVisibilityList;
-    ChunkList chunkSetupList;
 
     bool genChunk;
     bool forceVisibilityUpdate;
@@ -83,14 +87,15 @@ void ChunkManager::Update(float dt, Vector3 newCameraPosition,
 
     if (genChunk) {
         UpdateAsyncChunker(newCameraPosition);
-        // std::async(std::launch::async, &ChunkManager::UpdateAsyncChunker,
-        // this, newCameraPosition);
+        // asyncChunkFuture = std::async(&ChunkManager::UpdateAsyncChunker,
+        // this,
+        //    newCameraPosition);
     }
     UpdateLoadList();
     // std::async(std::launch::async, &ChunkManager::UpdateLoadList, this);
     UpdateSetupList();
     // std::async(std::launch::async, &ChunkManager::UpdateSetupList, this);
-    // UpdateRebuildList();
+    UpdateRebuildList();
     // UpdateFlagsList();
     // UpdateUnloadList(newCameraPosition);
     UpdateVisibilityList(newCameraPosition);
@@ -220,9 +225,57 @@ void ChunkManager::UpdateSetupList() { // Setup any chunks that have not
     chunkSetupList.clear();
 }
 
-// void ChunkManager::UpdateRebuildList() {
+void ChunkManager::QueueChunkToRebuild(Chunk *chunk) {
+    chunkRebuildList.push_back(chunk);
+}
 
-// }
+void ChunkManager::UpdateRebuildList() {
+    // Rebuild any chunks that are in the rebuild chunk list
+    ChunkList::iterator iterator;
+    int lNumRebuiltChunkThisFrame = 0;
+    for (iterator = chunkRebuildList.begin();
+         iterator != chunkRebuildList.end() &&
+         (lNumRebuiltChunkThisFrame != ASYNC_NUM_CHUNKS_PER_FRAME);
+         ++iterator) {
+        Chunk *pChunk = (*iterator);
+        if (pChunk->isLoaded() && pChunk->isSetup()) {
+            if (lNumRebuiltChunkThisFrame != ASYNC_NUM_CHUNKS_PER_FRAME) {
+                pChunk->rebuildMesh(); // If we rebuild a chunk, add it to the
+                                       // list of chunks that need their render
+                                       // flags updated
+                // since we might now be empty or surrounded
+                // m_vpChunkUpdateFlagsList.push_back(pChunk); // Also add our
+                // neighbours since they might now be surrounded too (If we have
+                // neighbours) Chunk * pChunkXMinus = GetChunk(pChunk -> GetX()
+                // - 1, pChunk -> GetY(), pChunk -> GetZ()); Chunk * pChunkXPlus
+                // = GetChunk(pChunk -> GetX() + 1, pChunk -> GetY(), pChunk ->
+                // GetZ()); Chunk * pChunkYMinus = GetChunk(pChunk -> GetX(),
+                // pChunk -> GetY() - 1, pChunk -> GetZ()); Chunk * pChunkYPlus
+                // = GetChunk(pChunk -> GetX(), pChunk -> GetY() + 1, pChunk ->
+                // GetZ()); Chunk * pChunkZMinus = GetChunk(pChunk -> GetX(),
+                // pChunk -> GetY(), pChunk -> GetZ() - 1); Chunk * pChunkZPlus
+                // = GetChunk(pChunk -> GetX(), pChunk -> GetY(), pChunk ->
+                // GetZ() + 1); if (pChunkXMinus != NULL)
+                // m_vpChunkUpdateFlagsList.push_back(pChunkXMinus); if
+                // (pChunkXPlus != NULL)
+                // m_vpChunkUpdateFlagsList.push_back(pChunkXPlus); if
+                // (pChunkYMinus != NULL)
+                // m_vpChunkUpdateFlagsList.push_back(pChunkYMinus); if
+                // (pChunkYPlus != NULL)
+                // m_vpChunkUpdateFlagsList.push_back(pChunkYPlus); if
+                // (pChunkZMinus != NULL)
+                // m_vpChunkUpdateFlagsList.push_back(pChunkZMinus); if
+                // (pChunkZPlus != NULL)
+                // m_vpChunkUpdateFlagsList.push_back(pChunkZPlus); // Only
+                // rebuild a certain number of chunks per frame
+                lNumRebuiltChunkThisFrame++;
+                forceVisibilityUpdate = true;
+            }
+        }
+    }
+    // Clear the rebuild list
+    chunkRebuildList.clear();
+}
 
 // unload chunks
 // void ChunkManager::UpdateUnloadList(Vector3 newCameraPosition) {
@@ -232,11 +285,14 @@ void ChunkManager::UpdateSetupList() { // Setup any chunks that have not
 //         Chunk *pChunk = (*iterator);
 //         if (pChunk->isLoaded()) {
 //             // TODO: async here?
-//             std::pair<Vector3, Vector3> chunkRange = GetChunkRange(newCameraPosition);
-//             Vector3 start = chunkRange.first;
-//             Vector3 end = chunkRange.second;
-//             if(!(start.x <= pChunk->chunkPosition.x <= end.x and start.y <= pChunk->chunkPosition.y <= end.y  and start.z <= pChunk->chunkPosition.z <= end.z)) {
-//                 chunks.erase(TPoint3D(pChunk->chunkPosition.x, pChunk->chunkPosition.y, pChunk->chunkPosition.z));
+//             std::pair<Vector3, Vector3> chunkRange =
+//             GetChunkRange(newCameraPosition); Vector3 start =
+//             chunkRange.first; Vector3 end = chunkRange.second; if(!(start.x
+//             <= pChunk->chunkPosition.x <= end.x and start.y <=
+//             pChunk->chunkPosition.y <= end.y  and start.z <=
+//             pChunk->chunkPosition.z <= end.z)) {
+//                 chunks.erase(TPoint3D(pChunk->chunkPosition.x,
+//                 pChunk->chunkPosition.y, pChunk->chunkPosition.z));
 //                 pChunk->unload();
 //                 // delete pChunk;
 //             }

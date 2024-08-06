@@ -18,7 +18,7 @@ struct Chunk {
     Block ***blocks;
     Mesh mesh;
     Model model;
-    Vector3 chunkPosition;
+    Vector3 chunkPosition; // minimum corner of the chunk
 
     Chunk(Vector3 position) {
         blocks = new Block **[CHUNK_SIZE];
@@ -99,10 +99,12 @@ struct Chunk {
         hasSetup = false;
     }
 
+    void rebuildMesh() {
+        UnloadMesh(mesh);
+        createMesh();
+    }
+
     void setup() {
-        if (!hasSetup) {
-            randomize();
-        }
         randomize();
         createMesh();
         hasSetup = true;
@@ -114,15 +116,27 @@ struct Chunk {
         color.a = 100.0f;
         DrawModel(model, {0.0, 0.0, 0.0}, 1.0f, color);
         DrawModelWires(model, {0.0, 0.0, 0.0}, 1.0f, BLACK);
+        BoundingBox bBox = getBoundingBox();
+        DrawBoundingBox(bBox, YELLOW);
+        DrawSphere(bBox.min, 1.0f, ORANGE);
+        DrawSphere(bBox.max, 1.0f, PINK);
+    }
+
+    BoundingBox getBoundingBox() {
+        Vector3 max = {chunkPosition.x + CHUNK_SIZE * Block::BLOCK_RENDER_SIZE,
+                       chunkPosition.y + CHUNK_SIZE * Block::BLOCK_RENDER_SIZE,
+                       chunkPosition.z + CHUNK_SIZE * Block::BLOCK_RENDER_SIZE};
+        BoundingBox bBox = {chunkPosition, max};
+        return bBox;
     }
 
     void randomize() {
         for (int x = 0; x < CHUNK_SIZE; x++) {
             for (int y = 0; y < CHUNK_SIZE; y++) {
                 for (int z = 0; z < CHUNK_SIZE; z++) {
-                    // int i = rand() % 2; blocks[x][y][z].isActive = i == 0 ?
-                    // false : true;
-                    blocks[x][y][z].isActive = true;
+                    int i = rand() % 2;
+                    blocks[x][y][z].isActive = i == 0 ? false : true;
+                    // blocks[x][y][z].isActive = true;
                 }
             }
         }
