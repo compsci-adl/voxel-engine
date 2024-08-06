@@ -2,6 +2,7 @@
 #include "rcamera.h"
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
+#include "utils.h"
 #include <math.h>
 #include "ChunkManager.h"
 
@@ -14,6 +15,7 @@ float GetScalingFactor(int currentWidth, int currentHeight) {
     float scaleY = (float)currentHeight / referenceScreenHeight;
     return fminf(scaleX, scaleY);
 }
+
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -36,10 +38,17 @@ int main(void)
     camera.fovy = 60.0f;                                // Camera field-of-view Y
     camera.projection = CAMERA_PERSPECTIVE;             // Camera projection type
 
+    // settings menu
+    bool showSettings = false;
+
+    // settings
+    float movementSpeed = 1.0f;
+
     int cameraMode = CAMERA_FREE;
 
     DisableCursor();                    // Limit cursor to relative movement inside the window
     GuiSetStyle(LABEL, TEXT + (guiState * 3), 0xff00ff);
+    GuiSetStyle(SLIDER, TEXT + (guiState * 3), 0xff00ff);
 
     // SetTargetFPS(144);                   // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
@@ -121,10 +130,20 @@ int main(void)
             chunkManager.genChunk = !chunkManager.genChunk;
         }
 
+        if (IsKeyPressed(KEY_TAB)) {
+            showSettings = !showSettings;
+            if(showSettings) {
+                EnableCursor();
+            } else {
+                DisableCursor();
+            }
+        }
+
         // Update camera computes movement internally depending on the camera mode
         // Some default standard keyboard/mouse inputs are hardcoded to simplify use
         // For advanced camera controls, it's recommended to compute camera movement manually
-        UpdateCamera(&camera, cameraMode);                  // Update camera
+        if(!showSettings) CustomUpdateCamera(&camera, cameraMode, movementSpeed);                  // Update camera
+
 
         //----------------------------------------------------------------------------------
 
@@ -162,7 +181,7 @@ int main(void)
             float scale = GetScalingFactor(currentScreenWidth, currentScreenHeight);
 
             // GUI controls using raygui
-            GuiLabel({ 15 * scale, 15, 300 * scale, 10 * scale }, "Camera controls:");
+            GuiLabel({ 15 * scale, 15, 300 * scale, 10 * scale }, "Controls:");
             GuiLabel({ 15 * scale, 30, 300 * scale, 10 * scale }, "- Move keys: W, A, S, D, Space, Left-Ctrl");
             GuiLabel({ 15 * scale, 45, 300 * scale, 10 * scale }, "- Look around: arrow keys or mouse");
             GuiLabel({ 15 * scale, 60, 300 * scale, 10 * scale }, "- Camera mode keys: 1, 2, 3, 4");
@@ -170,9 +189,10 @@ int main(void)
             GuiLabel({ 15 * scale, 90, 300 * scale, 10 * scale }, "- Camera projection key: P");
             GuiLabel({ 15 * scale, 105, 300 * scale, 10 * scale}, "- Toggle Chunk Gen: X");
             GuiLabel({ 15 * scale, 120, 300 * scale, 10 * scale}, "- Toggle fullscreen: F11");
-            GuiLabel({ 15 * scale, 135, 300 * scale, 10 * scale}, TextFormat("- FPS: %i", GetFPS()));
-            GuiLabel({ 15 * scale, 150, 300 * scale, 10 * scale}, TextFormat("- Frametime: %fms", GetFrameTime() * 1000));
-            GuiLabel({ 15 * scale, 165, 300 * scale, 10 * scale}, TextFormat("- Chunk Gen: %s", chunkManager.genChunk ? "On" : "Off"));
+            GuiLabel({ 15 * scale, 135, 300 * scale, 10 * scale}, "- Open settings: TAB");
+            GuiLabel({ 15 * scale, 150, 300 * scale, 10 * scale}, TextFormat("- FPS: %i", GetFPS()));
+            GuiLabel({ 15 * scale, 165, 300 * scale, 10 * scale}, TextFormat("- Frametime: %fms", GetFrameTime() * 1000));
+            GuiLabel({ 15 * scale, 180, 300 * scale, 10 * scale}, TextFormat("- Chunk Gen: %s", chunkManager.genChunk ? "On" : "Off"));
 
             GuiLabel({ 976 * scale, 15, 300 * scale, 10 * scale }, "Camera status:");
             GuiLabel({ 976 * scale, 30, 300 * scale, 10 * scale }, TextFormat("- Mode: %s", (cameraMode == CAMERA_FREE) ? "FREE" :
@@ -184,6 +204,9 @@ int main(void)
             GuiLabel({ 976 * scale, 60, 300 * scale, 10 * scale }, TextFormat("- Position: (%06.3f, %06.3f, %06.3f)", camera.position.x, camera.position.y, camera.position.z));
             GuiLabel({ 976 * scale, 75, 300 * scale, 10 * scale }, TextFormat("- Target: (%06.3f, %06.3f, %06.3f)", camera.target.x, camera.target.y, camera.target.z));
             GuiLabel({ 976 * scale, 90, 300 * scale, 10 * scale }, TextFormat("- Up: (%06.3f, %06.3f, %06.3f)", camera.up.x, camera.up.y, camera.up.z));
+
+            // show settings
+            if(showSettings) GuiSlider({ 100 * scale, 500, 300 * scale, 10 * scale}, TextFormat("Move Speed: %0.2f", movementSpeed), NULL, &movementSpeed, 0.1f, 10.0f);
 
         EndDrawing();
         //----------------------------------------------------------------------------------

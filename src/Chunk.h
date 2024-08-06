@@ -8,7 +8,6 @@
 
 /*
     TODO LIST:
-    - chunk updates
     - chunk render func inside our outside? how do we want to style our
    codebase?
     - chunk unloading?
@@ -110,7 +109,7 @@ struct Chunk {
         Color color = DARKGREEN;
         color.a = 100.0f;
         DrawModel(model, {0.0, 0.0, 0.0}, 1.0f, color);
-        DrawModelWires(model, {0.0, 0.0, 0.0}, 1.0f, WHITE);
+        DrawModelWires(model, {0.0, 0.0, 0.0}, 1.0f, BLACK);
     }
 
     void randomize() {

@@ -5,10 +5,22 @@
 #include <raymath.h>
 #include <unordered_map>
 #include <vector>
+// #include <future>
+
+/*
+    TODO LIST:
+    - feat: async chunk loading? i used std::async (see comments in chunk
+   loading code) but im not sure if it makes a difference
+    i would need to conduct more tests :\
+    - feat: chunk updates
+    - feat: chunk unloading?
+    - fix: initial chunk that gets rendered off the rip has weird alpha blending
+    artifacts when it
+*/
 
 class TPoint3D {
   public:
-    TPoint3D(float x, float y, float z) : x(x), y(y), z(z) {};
+    TPoint3D(float x, float y, float z) : x(x), y(y), z(z){};
 
     float x, y, z;
 };
@@ -73,17 +85,18 @@ void ChunkManager::Update(float dt, Vector3 newCameraPosition,
 
     if (genChunk) {
         UpdateAsyncChunker(newCameraPosition);
+        // std::async(std::launch::async, &ChunkManager::UpdateAsyncChunker,
+        // this, newCameraPosition);
     }
     UpdateLoadList();
+    // std::async(std::launch::async, &ChunkManager::UpdateLoadList, this);
     UpdateSetupList();
+    // std::async(std::launch::async, &ChunkManager::UpdateSetupList, this);
     // UpdateRebuildList();
     // UpdateFlagsList();
     // UpdateUnloadList();
     UpdateVisibilityList(newCameraPosition);
-    // if (!Vector3Equals(cameraPosition, newCameraPosition) ||
-    //     !Vector3Equals(cameraLookAt, newCameraLookAt)) {
     UpdateRenderList();
-    // }
     cameraPosition = newCameraPosition;
     cameraLookAt = newCameraLookAt;
 }
