@@ -1,10 +1,8 @@
 #include "raylib.h"
-#include "rcamera.h"
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
-#include "utils.h"
-#include <math.h>
 #include "ChunkManager.h"
+#include "utils.h"
 
 const int referenceScreenWidth = 800;
 const int referenceScreenHeight = 640;
@@ -142,7 +140,16 @@ int main(void)
         // Update camera computes movement internally depending on the camera mode
         // Some default standard keyboard/mouse inputs are hardcoded to simplify use
         // For advanced camera controls, it's recommended to compute camera movement manually
-        if(!showSettings) CustomUpdateCamera(&camera, cameraMode, movementSpeed);                  // Update camera
+        if(!showSettings) {
+            CustomUpdateCamera(&camera, cameraMode, movementSpeed);                  // Update camera
+        } else {
+            // deactivate block if clicked, and subsequently update the chunk
+            if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                Vector2 mousePos = GetMousePosition();
+                Ray mouseRay = GetMouseRay(mousePos, camera);
+                // GetRayCollisionBox()
+            }
+        }
 
 
         //----------------------------------------------------------------------------------

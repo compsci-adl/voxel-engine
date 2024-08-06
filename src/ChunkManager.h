@@ -9,13 +9,10 @@
 
 /*
     TODO LIST:
-    - feat: async chunk loading? i used std::async (see comments in chunk
-   loading code) but im not sure if it makes a difference
-    i would need to conduct more tests :\
     - feat: chunk updates
+    - feat: async chunk loading?
     - feat: chunk unloading?
-    - fix: initial chunk that gets rendered off the rip has weird alpha blending
-    artifacts when it
+    - fix: some chunks (def. first one) has weird alpha rendering bug - need to investigate the cause of this later.
 */
 
 class TPoint3D {
@@ -53,9 +50,10 @@ struct ChunkManager {
     void UpdateSetupList();
     void UpdateRebuildList();
     void UpdateFlagsList();
-    void UpdateUnloadList();
+    void UpdateUnloadList(Vector3 newCameraPosition);
     void UpdateRenderList();
     void UpdateVisibilityList(Vector3 newCameraPosition);
+    std::pair<Vector3, Vector3> GetChunkRange(Vector3 newCameraPosition);
     void Render();
 
     ChunkMap chunks;
@@ -94,7 +92,7 @@ void ChunkManager::Update(float dt, Vector3 newCameraPosition,
     // std::async(std::launch::async, &ChunkManager::UpdateSetupList, this);
     // UpdateRebuildList();
     // UpdateFlagsList();
-    // UpdateUnloadList();
+    // UpdateUnloadList(newCameraPosition);
     UpdateVisibilityList(newCameraPosition);
     UpdateRenderList();
     cameraPosition = newCameraPosition;
@@ -113,13 +111,8 @@ float roundUp(float number, float fixedBase) {
     return number;
 }
 
-void ChunkManager::UpdateAsyncChunker(Vector3 newCameraPosition) {
-    if (Vector3Equals(newCameraPosition, cameraPosition)) {
-        return;
-    }
-
-    // generate chunks inside render distance cube
-    ChunkList::iterator iterator;
+std::pair<Vector3, Vector3>
+ChunkManager::GetChunkRange(Vector3 newCameraPosition) {
     float startX = roundUp(newCameraPosition.x -
                                ((float)chunkAddDistance * Chunk::CHUNK_SIZE *
                                 Block::BLOCK_RENDER_SIZE),
@@ -145,13 +138,29 @@ void ChunkManager::UpdateAsyncChunker(Vector3 newCameraPosition) {
                               Block::BLOCK_RENDER_SIZE),
                          Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
 
+    return std::pair<Vector3, Vector3>({startX, startY, startZ},
+                                       {endX, endY, endZ});
+}
+
+void ChunkManager::UpdateAsyncChunker(Vector3 newCameraPosition) {
+    if (Vector3Equals(newCameraPosition, cameraPosition)) {
+        return;
+    }
+
+    std::pair<Vector3, Vector3> chunkRange = GetChunkRange(newCameraPosition);
+    Vector3 start = chunkRange.first;
+    Vector3 end = chunkRange.second;
+
+    // generate chunks inside render distance cube
+    ChunkList::iterator iterator;
+
     // printf("start: (%06.3f, %06.3f), end: (%06.3f, %06.3f)", startX, startY,
     //    endX, endY);
-    for (float i = startX; i < endX;
+    for (float i = start.x; i < end.x;
          i += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
-        for (float j = startY; j < endY;
+        for (float j = start.y; j < end.y;
              j += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
-            for (float k = startZ; k < endZ;
+            for (float k = start.z; k < end.z;
                  k += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
                 // generate flat for now
                 if (j > -Block::BLOCK_RENDER_SIZE) {
@@ -211,6 +220,31 @@ void ChunkManager::UpdateSetupList() { // Setup any chunks that have not
     chunkSetupList.clear();
 }
 
+// void ChunkManager::UpdateRebuildList() {
+
+// }
+
+// unload chunks
+// void ChunkManager::UpdateUnloadList(Vector3 newCameraPosition) {
+//     ChunkList::iterator iterator;
+//     for (iterator = chunkUnloadList.begin(); iterator !=
+//     chunkUnloadList.end(); iterator++) {
+//         Chunk *pChunk = (*iterator);
+//         if (pChunk->isLoaded()) {
+//             // TODO: async here?
+//             std::pair<Vector3, Vector3> chunkRange = GetChunkRange(newCameraPosition);
+//             Vector3 start = chunkRange.first;
+//             Vector3 end = chunkRange.second;
+//             if(!(start.x <= pChunk->chunkPosition.x <= end.x and start.y <= pChunk->chunkPosition.y <= end.y  and start.z <= pChunk->chunkPosition.z <= end.z)) {
+//                 chunks.erase(TPoint3D(pChunk->chunkPosition.x, pChunk->chunkPosition.y, pChunk->chunkPosition.z));
+//                 pChunk->unload();
+//                 // delete pChunk;
+//             }
+//         }
+//     }
+//     chunkUnloadList.clear();
+// }
+
 void ChunkManager::UpdateRenderList() {
     // Clear the render list each frame BEFORE we do our tests to see what
     // chunks should be rendered
@@ -230,6 +264,7 @@ void ChunkManager::UpdateRenderList() {
 void ChunkManager::UpdateVisibilityList(Vector3 newCameraPosition) {
     for (Chunk *chunk : chunkVisibilityList) {
         chunkLoadList.push_back(chunk);
+        // chunkUnloadList.push_back(chunk);
         chunkSetupList.push_back(chunk);
         chunkRenderList.push_back(chunk);
     }

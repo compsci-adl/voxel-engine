@@ -93,12 +93,16 @@ struct Chunk {
     void load() { loaded = true; }
 
     void unload() {
-        UnloadModel(model);
+        // UnloadModel(model);
         UnloadMesh(mesh);
         loaded = false;
+        hasSetup = false;
     }
 
     void setup() {
+        if (!hasSetup) {
+            randomize();
+        }
         randomize();
         createMesh();
         hasSetup = true;
@@ -123,6 +127,9 @@ struct Chunk {
             }
         }
     }
+
+    // void deactivateBlock(Vector2 coords) {
+    // }
 
     void AddCubeFace(Mesh *mesh, Vector3 p1, Vector3 p2, Vector3 p3, Vector3 p4,
                      Vector3 normal, int *vCount, int *iCount, float r, float g,
