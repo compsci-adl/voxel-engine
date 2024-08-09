@@ -143,6 +143,10 @@ int main(void) {
             }
         }
 
+        if (IsKeyPressed(KEY_F3)) {
+            Chunk::debugMode = !Chunk::debugMode;
+        }
+
         // Update camera computes movement internally depending on the camera
         // mode Some default standard keyboard/mouse inputs are hardcoded to
         // simplify use For advanced camera controls, it's recommended to
@@ -221,65 +225,73 @@ int main(void) {
         float scale = GetScalingFactor(currentScreenWidth, currentScreenHeight);
 
         // GUI controls using raygui
-        GuiLabel({15 * scale, 15, 300 * scale, 10 * scale}, "Controls:");
-        GuiLabel({15 * scale, 30, 300 * scale, 10 * scale},
-                 "- Move keys: W, A, S, D, Space, Left-Ctrl, Edit Mode: B");
-        GuiLabel({15 * scale, 45, 300 * scale, 10 * scale},
-                 "- Scramble Chunk: L-SHIFT + MOUSE 1");
-        GuiLabel({15 * scale, 60, 300 * scale, 10 * scale},
-                 "- Look around: arrow keys or mouse");
-        GuiLabel({15 * scale, 75, 300 * scale, 10 * scale},
-                 "- Camera mode keys: 1, 2, 3, 4");
-        GuiLabel({15 * scale, 90, 300 * scale, 10 * scale},
-                 "- Zoom keys: num-plus, num-minus or mouse scroll");
-        GuiLabel({15 * scale, 105, 300 * scale, 10 * scale},
-                 "- Camera projection key: P");
-        GuiLabel({15 * scale, 120, 300 * scale, 10 * scale},
-                 "- Toggle Chunk Gen: X");
-        GuiLabel({15 * scale, 135, 300 * scale, 10 * scale},
-                 "- Toggle fullscreen: F11");
-        GuiLabel({15 * scale, 150, 300 * scale, 10 * scale},
-                 "- Open settings: TAB");
-        GuiLabel({15 * scale, 165, 300 * scale, 10 * scale},
-                 TextFormat("- FPS: %i", GetFPS()));
-        GuiLabel({15 * scale, 180, 300 * scale, 10 * scale},
-                 TextFormat("- Frametime: %fms", GetFrameTime() * 1000));
-        GuiLabel({15 * scale, 195, 300 * scale, 10 * scale},
-                 TextFormat("- Chunk Gen: %s",
-                            chunkManager.genChunk ? "On" : "Off"));
-
-        GuiLabel({976 * scale, 15, 300 * scale, 10 * scale}, "Camera status:");
-        GuiLabel(
-            {976 * scale, 30, 300 * scale, 10 * scale},
-            TextFormat("- Mode: %s",
-                       (cameraMode == CAMERA_FREE)           ? "FREE"
-                       : (cameraMode == CAMERA_FIRST_PERSON) ? "FIRST_PERSON"
-                       : (cameraMode == CAMERA_THIRD_PERSON) ? "THIRD_PERSON"
-                       : (cameraMode == CAMERA_ORBITAL)      ? "ORBITAL"
-                                                             : "CUSTOM"));
-        GuiLabel({976 * scale, 45, 300 * scale, 10 * scale},
-                 TextFormat("- Projection: %s",
-                            (camera.projection == CAMERA_PERSPECTIVE)
-                                ? "PERSPECTIVE"
-                            : (camera.projection == CAMERA_ORTHOGRAPHIC)
-                                ? "ORTHOGRAPHIC"
-                                : "CUSTOM"));
-        GuiLabel({976 * scale, 60, 300 * scale, 10 * scale},
-                 TextFormat("- Position: (%06.3f, %06.3f, %06.3f)",
-                            camera.position.x, camera.position.y,
-                            camera.position.z));
-        GuiLabel({976 * scale, 75, 300 * scale, 10 * scale},
-                 TextFormat("- Target: (%06.3f, %06.3f, %06.3f)",
-                            camera.target.x, camera.target.y, camera.target.z));
-        GuiLabel({976 * scale, 90, 300 * scale, 10 * scale},
-                 TextFormat("- Up: (%06.3f, %06.3f, %06.3f)", camera.up.x,
-                            camera.up.y, camera.up.z));
+        GuiLabel({15 * scale, 5, 300 * scale, 10 * scale},
+                 TextFormat("FPS: %i", GetFPS()));
 
         // show settings
-        if (showSettings)
+        if (showSettings) {
+            GuiLabel({15 * scale, 15, 300 * scale, 10 * scale}, "Controls:");
+            GuiLabel(
+                {15 * scale, 30, 300 * scale, 10 * scale},
+                "- Move keys: W, A, S, D, Space, L-Ctrl, Edit: B, Debug: F3");
+            GuiLabel({15 * scale, 45, 300 * scale, 10 * scale},
+                     "- Scramble Chunk: L-SHIFT + MOUSE 1");
+            GuiLabel({15 * scale, 60, 300 * scale, 10 * scale},
+                     "- Look around: arrow keys or mouse");
+            GuiLabel({15 * scale, 75, 300 * scale, 10 * scale},
+                     "- Camera mode keys: 1, 2, 3, 4");
+            GuiLabel({15 * scale, 90, 300 * scale, 10 * scale},
+                     "- Zoom keys: num-plus, num-minus or mouse scroll");
+            GuiLabel({15 * scale, 105, 300 * scale, 10 * scale},
+                     "- Camera projection key: P");
+            GuiLabel({15 * scale, 120, 300 * scale, 10 * scale},
+                     "- Toggle Chunk Gen: X");
+            GuiLabel({15 * scale, 135, 300 * scale, 10 * scale},
+                     "- Toggle fullscreen: F11");
+            GuiLabel({15 * scale, 150, 300 * scale, 10 * scale},
+                     "- Open settings: TAB");
+            GuiLabel({15 * scale, 180, 300 * scale, 10 * scale},
+                     TextFormat("- Frametime: %fms", GetFrameTime() * 1000));
+            GuiLabel({15 * scale, 195, 300 * scale, 10 * scale},
+                     TextFormat("- Chunk Gen: %s",
+                                chunkManager.genChunk ? "On" : "Off"));
+            GuiLabel(
+                {15 * scale, 210, 300 * scale, 10 * scale},
+                TextFormat("- Debug: %s", Chunk::debugMode ? "On" : "Off"));
+
+            GuiLabel({976 * scale, 15, 300 * scale, 10 * scale},
+                     "Camera status:");
+            GuiLabel({976 * scale, 30, 300 * scale, 10 * scale},
+                     TextFormat(
+                         "- Mode: %s",
+                         (cameraMode == CAMERA_FREE)           ? "FREE"
+                         : (cameraMode == CAMERA_FIRST_PERSON) ? "FIRST_PERSON"
+                         : (cameraMode == CAMERA_THIRD_PERSON) ? "THIRD_PERSON"
+                         : (cameraMode == CAMERA_ORBITAL)      ? "ORBITAL"
+                                                               : "CUSTOM"));
+            GuiLabel({976 * scale, 45, 300 * scale, 10 * scale},
+                     TextFormat("- Projection: %s",
+                                (camera.projection == CAMERA_PERSPECTIVE)
+                                    ? "PERSPECTIVE"
+                                : (camera.projection == CAMERA_ORTHOGRAPHIC)
+                                    ? "ORTHOGRAPHIC"
+                                    : "CUSTOM"));
+            GuiLabel({976 * scale, 60, 300 * scale, 10 * scale},
+                     TextFormat("- Position: (%06.3f, %06.3f, %06.3f)",
+                                camera.position.x, camera.position.y,
+                                camera.position.z));
+            GuiLabel({976 * scale, 75, 300 * scale, 10 * scale},
+                     TextFormat("- Target: (%06.3f, %06.3f, %06.3f)",
+                                camera.target.x, camera.target.y,
+                                camera.target.z));
+            GuiLabel({976 * scale, 90, 300 * scale, 10 * scale},
+                     TextFormat("- Up: (%06.3f, %06.3f, %06.3f)", camera.up.x,
+                                camera.up.y, camera.up.z));
+
             GuiSlider({100 * scale, 500, 300 * scale, 10 * scale},
                       TextFormat("Move Speed: %0.2f", movementSpeed), NULL,
                       &movementSpeed, 0.01f, 10.0f);
+        }
 
         EndDrawing();
         //----------------------------------------------------------------------------------
