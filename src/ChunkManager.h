@@ -1,15 +1,15 @@
 #ifndef CHUNKMANAGER_H
 #define CHUNKMANAGER_H
 #include "Chunk.h"
+#include "Frustum.h"
 #include "raylib.h"
-#include <future>
 #include <raymath.h>
+// #include <future>
 #include <unordered_map>
 #include <vector>
 
 /*
     TODO LIST:
-    - feat: chunk updates
     - feat: async chunk loading?
     - feat: chunk unloading?
     - fix: some chunks (def. first one) has weird alpha rendering bug - need to
@@ -45,19 +45,19 @@ struct ChunkManager {
     static int const ASYNC_NUM_CHUNKS_PER_FRAME = 12;
     ChunkManager(unsigned int chunkAddDistance);
     ~ChunkManager();
-    void Update(float dt, Vector3 newCameraPosition, Vector3 newCameraLookAt);
-    void UpdateAsyncChunker(Vector3 newCameraPosition);
-    void UpdateLoadList();
-    void UpdateSetupList();
-    void UpdateRebuildList();
-    void UpdateFlagsList();
-    void UpdateUnloadList(Vector3 newCameraPosition);
-    void UpdateVisibilityList(Vector3 newCameraPosition);
-    void UpdateRenderList();
+    void update(float dt, Vector3 newCameraPosition, Vector3 newCameraLookAt);
+    void updateAsyncChunker(Vector3 newCameraPosition);
+    void updateLoadList();
+    void updateSetupList();
+    void updateRebuildList();
+    void updateFlagsList();
+    void updateUnloadList(Vector3 newCameraPosition);
+    void updateVisibilityList(Vector3 newCameraPosition);
+    void updateRenderList();
 
     void QueueChunkToRebuild(Chunk *chunk);
     std::pair<Vector3, Vector3> GetChunkRange(Vector3 newCameraPosition);
-    void Render();
+    void render();
 
     ChunkMap chunks;
     ChunkList chunkLoadList;
@@ -66,9 +66,10 @@ struct ChunkManager {
     ChunkList chunkRenderList;
     ChunkList chunkUnloadList;
     ChunkList chunkVisibilityList;
+    Frustum frustum;
 
     bool genChunk;
-    bool forceVisibilityUpdate;
+    bool forceVisibilityupdate;
     Vector3 cameraPosition;
     Vector3 cameraLookAt;
     unsigned int chunkAddDistance;
@@ -77,29 +78,28 @@ struct ChunkManager {
 ChunkManager::ChunkManager(unsigned int _chunkAddDistance) {
     chunkAddDistance = _chunkAddDistance;
     genChunk = true;
-    bool forceVisibilityUpdate = true;
+    bool forceVisibilityupdate = true;
 }
 
 ChunkManager::~ChunkManager() { chunks.clear(); }
 
-void ChunkManager::Update(float dt, Vector3 newCameraPosition,
+void ChunkManager::update(float dt, Vector3 newCameraPosition,
                           Vector3 newCameraLookAt) {
-
     if (genChunk) {
-        UpdateAsyncChunker(newCameraPosition);
-        // asyncChunkFuture = std::async(&ChunkManager::UpdateAsyncChunker,
+        updateAsyncChunker(newCameraPosition);
+        // asyncChunkFuture = std::async(&ChunkManager::updateAsyncChunker,
         // this,
         //    newCameraPosition);
     }
-    UpdateLoadList();
-    // std::async(std::launch::async, &ChunkManager::UpdateLoadList, this);
-    UpdateSetupList();
-    // std::async(std::launch::async, &ChunkManager::UpdateSetupList, this);
-    UpdateRebuildList();
-    // UpdateFlagsList();
-    // UpdateUnloadList(newCameraPosition);
-    UpdateVisibilityList(newCameraPosition);
-    UpdateRenderList();
+    updateLoadList();
+    // std::async(std::launch::async, &ChunkManager::updateLoadList, this);
+    updateSetupList();
+    // std::async(std::launch::async, &ChunkManager::updateSetupList, this);
+    updateRebuildList();
+    // updateFlagsList();
+    // updateUnloadList(newCameraPosition);
+    updateVisibilityList(newCameraPosition);
+    updateRenderList();
     cameraPosition = newCameraPosition;
     cameraLookAt = newCameraLookAt;
 }
@@ -147,7 +147,7 @@ ChunkManager::GetChunkRange(Vector3 newCameraPosition) {
                                        {endX, endY, endZ});
 }
 
-void ChunkManager::UpdateAsyncChunker(Vector3 newCameraPosition) {
+void ChunkManager::updateAsyncChunker(Vector3 newCameraPosition) {
     if (Vector3Equals(newCameraPosition, cameraPosition)) {
         return;
     }
@@ -188,7 +188,7 @@ void ChunkManager::UpdateAsyncChunker(Vector3 newCameraPosition) {
     }
 }
 
-void ChunkManager::UpdateLoadList() {
+void ChunkManager::updateLoadList() {
     int lNumOfChunksLoaded = 0;
     ChunkList::iterator iterator;
     for (iterator = chunkLoadList.begin();
@@ -200,14 +200,14 @@ void ChunkManager::UpdateLoadList() {
             if (lNumOfChunksLoaded != ASYNC_NUM_CHUNKS_PER_FRAME) {
                 pChunk->load();
                 lNumOfChunksLoaded++;
-                forceVisibilityUpdate = true;
+                forceVisibilityupdate = true;
             }
         }
     } // Clear the load list (every frame)
     chunkLoadList.clear();
 }
 
-void ChunkManager::UpdateSetupList() { // Setup any chunks that have not
+void ChunkManager::updateSetupList() { // Setup any chunks that have not
                                        // already been setup
     ChunkList::iterator iterator;
     for (iterator = chunkSetupList.begin(); iterator != chunkSetupList.end();
@@ -218,7 +218,7 @@ void ChunkManager::UpdateSetupList() { // Setup any chunks that have not
             if (pChunk->isSetup()) { // Only force the visibility update if we
                                      // actually setup the chunk, some chunks
                                      // wait in the pre-setup stage...
-                forceVisibilityUpdate = true;
+                forceVisibilityupdate = true;
             }
         }
     } // Clear the setup list (every frame)
@@ -229,7 +229,7 @@ void ChunkManager::QueueChunkToRebuild(Chunk *chunk) {
     chunkRebuildList.push_back(chunk);
 }
 
-void ChunkManager::UpdateRebuildList() {
+void ChunkManager::updateRebuildList() {
     // Rebuild any chunks that are in the rebuild chunk list
     ChunkList::iterator iterator;
     int lNumRebuiltChunkThisFrame = 0;
@@ -244,7 +244,7 @@ void ChunkManager::UpdateRebuildList() {
                                        // list of chunks that need their render
                                        // flags updated
                 // since we might now be empty or surrounded
-                // m_vpChunkUpdateFlagsList.push_back(pChunk); // Also add our
+                // m_vpChunkupdateFlagsList.push_back(pChunk); // Also add our
                 // neighbours since they might now be surrounded too (If we have
                 // neighbours) Chunk * pChunkXMinus = GetChunk(pChunk -> GetX()
                 // - 1, pChunk -> GetY(), pChunk -> GetZ()); Chunk * pChunkXPlus
@@ -256,20 +256,20 @@ void ChunkManager::UpdateRebuildList() {
                 // pChunk -> GetY(), pChunk -> GetZ() - 1); Chunk * pChunkZPlus
                 // = GetChunk(pChunk -> GetX(), pChunk -> GetY(), pChunk ->
                 // GetZ() + 1); if (pChunkXMinus != NULL)
-                // m_vpChunkUpdateFlagsList.push_back(pChunkXMinus); if
+                // m_vpChunkupdateFlagsList.push_back(pChunkXMinus); if
                 // (pChunkXPlus != NULL)
-                // m_vpChunkUpdateFlagsList.push_back(pChunkXPlus); if
+                // m_vpChunkupdateFlagsList.push_back(pChunkXPlus); if
                 // (pChunkYMinus != NULL)
-                // m_vpChunkUpdateFlagsList.push_back(pChunkYMinus); if
+                // m_vpChunkupdateFlagsList.push_back(pChunkYMinus); if
                 // (pChunkYPlus != NULL)
-                // m_vpChunkUpdateFlagsList.push_back(pChunkYPlus); if
+                // m_vpChunkupdateFlagsList.push_back(pChunkYPlus); if
                 // (pChunkZMinus != NULL)
-                // m_vpChunkUpdateFlagsList.push_back(pChunkZMinus); if
+                // m_vpChunkupdateFlagsList.push_back(pChunkZMinus); if
                 // (pChunkZPlus != NULL)
-                // m_vpChunkUpdateFlagsList.push_back(pChunkZPlus); // Only
+                // m_vpChunkupdateFlagsList.push_back(pChunkZPlus); // Only
                 // rebuild a certain number of chunks per frame
                 lNumRebuiltChunkThisFrame++;
-                forceVisibilityUpdate = true;
+                forceVisibilityupdate = true;
             }
         }
     }
@@ -278,7 +278,7 @@ void ChunkManager::UpdateRebuildList() {
 }
 
 // unload chunks
-// void ChunkManager::UpdateUnloadList(Vector3 newCameraPosition) {
+// void ChunkManager::updateUnloadList(Vector3 newCameraPosition) {
 //     ChunkList::iterator iterator;
 //     for (iterator = chunkUnloadList.begin(); iterator !=
 //     chunkUnloadList.end(); iterator++) {
@@ -301,7 +301,7 @@ void ChunkManager::UpdateRebuildList() {
 //     chunkUnloadList.clear();
 // }
 
-void ChunkManager::UpdateRenderList() {
+void ChunkManager::updateRenderList() {
     // Clear the render list each frame BEFORE we do our tests to see what
     // chunks should be rendered
     chunkRenderList.clear();
@@ -317,7 +317,7 @@ void ChunkManager::UpdateRenderList() {
     }
 }
 
-void ChunkManager::UpdateVisibilityList(Vector3 newCameraPosition) {
+void ChunkManager::updateVisibilityList(Vector3 newCameraPosition) {
     for (Chunk *chunk : chunkVisibilityList) {
         chunkLoadList.push_back(chunk);
         // chunkUnloadList.push_back(chunk);
@@ -326,7 +326,7 @@ void ChunkManager::UpdateVisibilityList(Vector3 newCameraPosition) {
     }
 }
 
-void ChunkManager::Render() {
+void ChunkManager::render() {
     for (Chunk *chunk : chunkRenderList) {
         chunk->render();
     }

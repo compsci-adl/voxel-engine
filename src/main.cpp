@@ -205,8 +205,8 @@ int main(void) {
         DrawCubeWires({0.0f, 0.0f, 0.0f}, 10.0f, 10.0f, 10.0f,
                       BLACK); // Draw a blue wall
         // chunk.render();
-        chunkManager.Update(0.0, camera.position, camera.target);
-        chunkManager.Render();
+        chunkManager.update(0.0, camera.position, camera.target);
+        chunkManager.render();
         DrawRay(mouseRay, RED);
 
         // Draw player cube
