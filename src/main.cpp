@@ -11,6 +11,7 @@
 #include <map>
 #include "smolgl.h"
 #include "Chunk.h"
+#include "ChunkManager.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -86,11 +87,13 @@ int main()
 
     // build and compile shader programs
     // ------------------------------------
-    Shader ourShader("src/shaders/camera.vert", "src/shaders/camera.frag");
+    Shader* ourShader = new Shader("src/shaders/camera.vert", "src/shaders/camera.frag");
 
-    Chunk chunk = Chunk(glm::vec3(0.0f, 0.0f, 0.0f), ourShader);
-    chunk.load();
-    chunk.setup();
+    // glm::vec3 pos = glm::vec3(0, 0, 0);
+    // Chunk chunk = Chunk(pos, ourShader);
+    // chunk.load();
+    // chunk.setup();
+    ChunkManager chunkManager = ChunkManager(3, ourShader);
 
     std::string fps = "FPS: 0";
 
@@ -113,7 +116,9 @@ int main()
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
-        chunk.render();
+        // chunk.render();
+        chunkManager.update(deltaTime, cameraPos, cameraPos + cameraFront);
+        chunkManager.render();
 
         // Calculate and render FPS
         std::string newFPS = calculateFPS(deltaTime);

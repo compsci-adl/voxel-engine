@@ -13,7 +13,7 @@ enum BlockType {
 };
 
 struct Block {
-    static constexpr float BLOCK_RENDER_SIZE = 2.0f;
+    static constexpr int BLOCK_RENDER_SIZE = 2;
     // TODO: do we keep this in CPU or in GPU ?
     bool isActive;    Block(){};
     ~Block(){};

@@ -21,7 +21,7 @@ void main()
     // No normal or type used in this example for movement
     vec3 decodedPos = vec3(x, y, z);
 
-    gl_Position = projection * view * model * vec4((decodedPos) + worldPos, 1.0);
+    gl_Position = projection * view * model * vec4(decodedPos + worldPos, 1.0);
     // TexCoord = vec2(0.0, 0.0); // Assuming no texture coordinates for simplicity
 	ourColor = inColor;
 }

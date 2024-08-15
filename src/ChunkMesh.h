@@ -10,18 +10,21 @@
 
 #include <stdio.h>
 
+const float zNear = 0.1f;
+const float zFar = 1000.0f;
+
 // Material, includes shader and maps
 struct Material {
-    Shader shader; // Material shader
+    Shader* shader; // Material shader
     // MaterialMap *maps;      // Material maps array (MAX_MATERIAL_MAPS)
     // float params[4];        // Material generic parameters (if required)
     Material();
-    Material(Shader _shader);
+    Material(Shader* _shader);
 };
 
 Material::Material() {}
 
-Material::Material(Shader _shader) { shader = _shader; }
+Material::Material(Shader* _shader) { shader = _shader; }
 
 struct ChunkMesh {
     static constexpr int MESH_VERTEX_BUFFERS = 2;
@@ -125,19 +128,17 @@ void UnloadChunkMesh(ChunkMesh mesh) {
 }
 
 void DrawChunkMesh(ChunkMesh mesh, Material material, glm::vec3 position) {
-    material.shader.use();
-
-    material.shader.setVec3("worldPos", position);
+    material.shader->use();
 
     glm::mat4 projection = glm::perspective(
-        glm::radians(fov), (float)SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
-    material.shader.setMat4("projection", projection);
+        glm::radians(fov), (float)SCR_WIDTH / SCR_HEIGHT, zNear, zFar);
+    material.shader->setMat4("projection", projection);
 
     glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-    material.shader.setMat4("view", view);
+    material.shader->setMat4("view", view);
 
     glm::mat4 model = glm::mat4(1.0f);
-    material.shader.setMat4("model", model);
+    material.shader->setMat4("model", model);
 
     glBindVertexArray(mesh.vaoId);
     glBindBuffer(GL_ARRAY_BUFFER, mesh.vboId[0]);
@@ -145,22 +146,23 @@ void DrawChunkMesh(ChunkMesh mesh, Material material, glm::vec3 position) {
                            GL_INT, sizeof(int), (void *)0);
     smolEnableVertexAttribute(SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
 
+    material.shader->setVec3("worldPos", position);
     // Draw mesh
     if (mesh.indices != NULL) {
         glLineWidth(5.0f);
-        material.shader.setVec3("inColor", {0.5f, 1.0f, 0.5f});
+        material.shader->setVec3("inColor", {0.5f, 1.0f, 0.5f});
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         smolDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
-        material.shader.setVec3("inColor", {0.0f, 0.5f, 0.0f});
+        material.shader->setVec3("inColor", {0.0f, 0.5f, 0.0f});
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         smolDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
     }
     else {
         glLineWidth(5.0f);
-        material.shader.setVec3("inColor", {0.5f, 1.0f, 0.5f});
+        material.shader->setVec3("inColor", {0.5f, 1.0f, 0.5f});
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         smolDrawVertexArray(0, mesh.triangleCount * 3);
-        material.shader.setVec3("inColor", {0.0f, 0.5f, 0.0f});
+        material.shader->setVec3("inColor", {0.0f, 0.5f, 0.0f});
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         smolDrawVertexArray(0, mesh.triangleCount * 3);
     }

@@ -32,7 +32,7 @@ struct Chunk {
     glm::vec3 chunkPosition; // minimum corner of the chunk
     Material material;
 
-    Chunk(glm::vec3 position, Shader shader);
+    Chunk(glm::vec3 position, Shader *shader);
     ~Chunk();
 
     void createMesh();
@@ -77,7 +77,7 @@ struct Chunk {
 
 bool Chunk::debugMode = false;
 
-Chunk::Chunk(glm::vec3 position, Shader shader) {
+Chunk::Chunk(glm::vec3 position, Shader *shader) {
     // blocks = new Block[CHUNK_SIZE_CUBED];
     chunkPosition = position;
     // material = LoadMaterialDefault();
@@ -88,7 +88,7 @@ Chunk::Chunk(glm::vec3 position, Shader shader) {
     loaded = false;
 };
 
-Chunk::~Chunk(){
+Chunk::~Chunk() {
     // delete blocks;
 };
 
@@ -149,9 +149,7 @@ void Chunk::setup() {
 }
 
 // renders the chunk
-void Chunk::render() {
-    DrawChunkMesh(mesh, material, chunkPosition);
-}
+void Chunk::render() { DrawChunkMesh(mesh, material, chunkPosition); }
 
 // BoundingBox Chunk::getBoundingBox() {
 //     glm::vec3 max = {chunkPosition.x + CHUNK_SIZE * Block::BLOCK_RENDER_SIZE,
@@ -204,25 +202,41 @@ void Chunk::AddCubeFace(ChunkMesh *mesh, int p1, int p2, int p3, int p4,
 
 void Chunk::CreateCube(ChunkMesh *mesh, int blockX, int blockY, int blockZ,
                        float size, int *vCount, int *iCount) {
-    float hs = size / 2.0f;
+    int hs = (int)(size / 2.0f);
 
     // TODO: casts here?
     // TODO: ignore normals for now
-    int p1 = Chunk::packVertex(blockX - hs, blockY - hs, blockZ + hs, 1,
+    int p1 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX - hs,
+                               Block::BLOCK_RENDER_SIZE * blockY - hs,
+                               Block::BLOCK_RENDER_SIZE * blockZ + hs, 1,
                                BlockType::Grass);
-    int p2 = Chunk::packVertex(blockX + hs, blockY - hs, blockZ + hs, 1,
+    int p2 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX + hs,
+                               Block::BLOCK_RENDER_SIZE * blockY - hs,
+                               Block::BLOCK_RENDER_SIZE * blockZ + hs, 1,
                                BlockType::Grass);
-    int p3 = Chunk::packVertex(blockX + hs, blockY + hs, blockZ + hs, 1,
+    int p3 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX + hs,
+                               Block::BLOCK_RENDER_SIZE * blockY + hs,
+                               Block::BLOCK_RENDER_SIZE * blockZ + hs, 1,
                                BlockType::Grass);
-    int p4 = Chunk::packVertex(blockX - hs, blockY + hs, blockZ + hs, 1,
+    int p4 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX - hs,
+                               Block::BLOCK_RENDER_SIZE * blockY + hs,
+                               Block::BLOCK_RENDER_SIZE * blockZ + hs, 1,
                                BlockType::Grass);
-    int p5 = Chunk::packVertex(blockX + hs, blockY - hs, blockZ - hs, 1,
+    int p5 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX + hs,
+                               Block::BLOCK_RENDER_SIZE * blockY - hs,
+                               Block::BLOCK_RENDER_SIZE * blockZ - hs, 1,
                                BlockType::Grass);
-    int p6 = Chunk::packVertex(blockX - hs, blockY - hs, blockZ - hs, 1,
+    int p6 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX - hs,
+                               Block::BLOCK_RENDER_SIZE * blockY - hs,
+                               Block::BLOCK_RENDER_SIZE * blockZ - hs, 1,
                                BlockType::Grass);
-    int p7 = Chunk::packVertex(blockX - hs, blockY + hs, blockZ - hs, 1,
+    int p7 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX - hs,
+                               Block::BLOCK_RENDER_SIZE * blockY + hs,
+                               Block::BLOCK_RENDER_SIZE * blockZ - hs, 1,
                                BlockType::Grass);
-    int p8 = Chunk::packVertex(blockX + hs, blockY + hs, blockZ - hs, 1,
+    int p8 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX + hs,
+                               Block::BLOCK_RENDER_SIZE * blockY + hs,
+                               Block::BLOCK_RENDER_SIZE * blockZ - hs, 1,
                                BlockType::Grass);
 
     bool lDefault = false;
