@@ -20,22 +20,6 @@ void processInput(GLFWwindow *window);
 std::string calculateFPS(float deltaTime);
 void renderText(Shader &shader, std::string text, float x, float y, float scale, glm::vec3 color);
 
-// settings
-// const unsigned int SCR_WIDTH = 800;
-// const unsigned int SCR_HEIGHT = 600;
-
-// // camera
-// glm::vec3 cameraPos   = glm::vec3(0.0f, 0.0f, 3.0f);
-// glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-// glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f, 0.0f);
-
-// bool firstMouse = true;
-// float yaw   = -90.0f;	// yaw is initialized to -90.0 degrees since a yaw of 0.0 results in a direction vector pointing to the right so we initially rotate a bit to the left.
-// float pitch =  0.0f;
-// float lastX =  800.0f / 2.0;
-// float lastY =  600.0 / 2.0;
-// float fov   =  90.0f;
-
 // timing
 float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
@@ -160,6 +144,10 @@ void processInput(GLFWwindow *window)
         cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        cameraPos +=  cameraUp * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        cameraPos -=  cameraUp * cameraSpeed;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
