@@ -1,28 +1,38 @@
 #ifndef CHUNK_H
 #define CHUNK_H
 #include "Block.h"
-#include "raylib.h"
-#include "raymath.h"
+#include "ChunkMesh.h"
+#include <glm/glm.hpp>
+#include <learnopengl/shader_m.h>
 #include <stdlib.h>
 #include <string.h>
 
 /*
-    TODO LIST:
-    - chunk render func inside our outside? how do we want to style our
+        TODO LIST:
+        - chunk render func inside our outside? how do we want to style our
    codebase?
-    - chunk unloading?
+        - chunk unloading?
 */
 
+typedef struct VoxelPoint3D {
+    int x;
+    int y;
+    int z;
+} VoxelPoint3d;
+
 struct Chunk {
-    static const int CHUNK_SIZE = 16;
+    static constexpr int CHUNK_SIZE = 32;
+    static constexpr int CHUNK_SIZE_CUBED =
+        CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
     static bool debugMode;
 
-    Block blocks[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
-    Mesh mesh;
-    Model model;
-    Vector3 chunkPosition; // minimum corner of the chunk
+    Block blocks[CHUNK_SIZE_CUBED];
+    ChunkMesh mesh;
+    // ChunkModel model;
+    glm::vec3 chunkPosition; // minimum corner of the chunk
+    Material material;
 
-    Chunk(Vector3 position);
+    Chunk(glm::vec3 position, Shader shader);
     ~Chunk();
 
     void createMesh();
@@ -31,18 +41,33 @@ struct Chunk {
     void rebuildMesh();
     void setup();
     void render();
-    BoundingBox getBoundingBox();
+    // BoundingBox getBoundingBox();
     void randomize();
-    void AddCubeFace(Mesh *mesh, Vector3 p1, Vector3 p2, Vector3 p3, Vector3 p4,
-                     Vector3 normal, int *vCount, int *iCount, float r, float g,
-                     float b, float a);
-    void CreateCube(Mesh *mesh, Vector3 position, float size, int *vCount,
-                    int *iCount, int blockX, int blockY, int blockZ);
+    void AddCubeFace(ChunkMesh *mesh, int p1, int p2, int p3, int p4,
+                     int *vCount, int *iCount);
+    void CreateCube(ChunkMesh *mesh, int blockX, int blockY, int blockZ,
+                    float size, int *vCount, int *iCount);
     bool isLoaded();
     bool isSetup();
 
     inline int getIndex(int x, int y, int z) const {
         return x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE;
+    }
+
+    // inline int packVertex(int x, int y, int z, int normal,
+    //                       BlockType blockType) const {
+    //     int data = 0;
+    //     data |= (blockType & 127) << 21;
+    //     data |= (normal & 7) << 18;
+    //     data |= (z & 63) << 12;
+    //     data |= (y & 63) << 6;
+    //     data |= (x & 63);
+    // }
+    static inline int packVertex(int x, int y, int z, int normal, int type) {
+        int offset = 16; // Offset to handle negative values
+        return ((x + offset) & 0x3F) | (((y + offset) & 0x3F) << 6) |
+               (((z + offset) & 0x3F) << 12) | ((normal & 0x7) << 18) |
+               ((type & 0x7FF) << 21);
     }
 
   private:
@@ -52,9 +77,13 @@ struct Chunk {
 
 bool Chunk::debugMode = false;
 
-Chunk::Chunk(Vector3 position) {
-    // blocks = new Block[CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE];
+Chunk::Chunk(glm::vec3 position, Shader shader) {
+    // blocks = new Block[CHUNK_SIZE_CUBED];
     chunkPosition = position;
+    // material = LoadMaterialDefault();
+    material = Material(shader);
+    // material.maps[MATERIAL_MAP_DIFFUSE].color.a = 255.0f;
+
     hasSetup = false;
     loaded = false;
 };
@@ -68,57 +97,48 @@ void Chunk::createMesh() {
     int vertexCount = 0;
     int indexCount = 0;
 
-    int totalVertices = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 4 * 2;
-    int totalIndices = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6 * 6 * 2;
+    int totalVertices = CHUNK_SIZE_CUBED * 6 * 4 * 2;
+    int totalIndices = CHUNK_SIZE_CUBED * 6 * 6 * 2;
 
-    float *normals = (float *)malloc(totalVertices * 3 * sizeof(float));
-    float *texcoords = (float *)malloc(totalVertices * 2 * sizeof(float));
     unsigned int *indices =
         (unsigned int *)malloc(totalIndices * sizeof(unsigned int));
-    unsigned char *colors =
-        (unsigned char *)malloc(totalVertices * 4 * sizeof(unsigned char));
 
     mesh = {0};
     mesh.vertexCount = 0;
     mesh.triangleCount = 0;
-    mesh.vertices = (float *)malloc(totalVertices * 3 * sizeof(float));
-    mesh.normals = normals;
-    mesh.texcoords = texcoords;
+    mesh.vertices = (int *)malloc(totalVertices * sizeof(int));
     mesh.indices = indices;
-    mesh.colors = colors;
 
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int y = 0; y < CHUNK_SIZE; y++) {
             for (int z = 0; z < CHUNK_SIZE; z++) {
-                if (!blocks[getIndex(x, y, z)].isActive) {
+                Block &block = blocks[getIndex(x, y, z)];
+                if (!block.isActive) {
                     continue;
                 }
-                Vector3 pos = {Block::BLOCK_RENDER_SIZE * (float)x,
-                               Block::BLOCK_RENDER_SIZE * (float)y,
-                               Block::BLOCK_RENDER_SIZE * (float)z};
-                pos = Vector3Add(pos, chunkPosition);
-                CreateCube(&mesh, pos, Block::BLOCK_RENDER_SIZE,
-                           &mesh.vertexCount, &indexCount, x, y, z);
+                CreateCube(&mesh, x, y, z, Block::BLOCK_RENDER_SIZE,
+                           &mesh.vertexCount, &indexCount);
             }
         }
     }
 
     mesh.triangleCount = indexCount / 3;
-    UploadMesh(&mesh, false);
-    model = LoadModelFromMesh(mesh);
+    UploadChunkMesh(&mesh, false);
+    // model = LoadChunkModelFromMesh(mesh, material);
+    // model = LoadModelFromMesh(mesh);
 }
 
 void Chunk::load() { loaded = true; }
 
 void Chunk::unload() {
     // UnloadModel(model);
-    UnloadMesh(mesh);
+    UnloadChunkMesh(mesh);
     loaded = false;
     hasSetup = false;
 }
 
 void Chunk::rebuildMesh() {
-    UnloadMesh(mesh);
+    UnloadChunkMesh(mesh);
     createMesh();
 }
 
@@ -130,26 +150,17 @@ void Chunk::setup() {
 
 // renders the chunk
 void Chunk::render() {
-    Color color = DARKGREEN;
-    DrawModel(model, {0.0, 0.0, 0.0}, 1.0f, color);
-    Color wireColor = {(unsigned char)209.0f, (unsigned char)255.0f,
-                       (unsigned char)189.0f, (unsigned char)255.0f};
-    DrawModelWires(model, {0.0, 0.0, 0.0}, 1.0f, wireColor);
-    if (Chunk::debugMode) {
-        BoundingBox bBox = getBoundingBox();
-        DrawBoundingBox(bBox, YELLOW);
-        DrawSphere(bBox.min, 1.0f, ORANGE);
-        DrawSphere(bBox.max, 1.0f, PINK);
-    }
+    DrawChunkMesh(mesh, material, chunkPosition);
 }
 
-BoundingBox Chunk::getBoundingBox() {
-    Vector3 max = {chunkPosition.x + CHUNK_SIZE * Block::BLOCK_RENDER_SIZE,
-                   chunkPosition.y + CHUNK_SIZE * Block::BLOCK_RENDER_SIZE,
-                   chunkPosition.z + CHUNK_SIZE * Block::BLOCK_RENDER_SIZE};
-    BoundingBox bBox = {chunkPosition, max};
-    return bBox;
-}
+// BoundingBox Chunk::getBoundingBox() {
+//     glm::vec3 max = {chunkPosition.x + CHUNK_SIZE * Block::BLOCK_RENDER_SIZE,
+//                      chunkPosition.y + CHUNK_SIZE * Block::BLOCK_RENDER_SIZE,
+//                      chunkPosition.z + CHUNK_SIZE *
+//                      Block::BLOCK_RENDER_SIZE};
+//     BoundingBox bBox = {chunkPosition, max};
+//     return bBox;
+// }
 
 void Chunk::randomize() {
     for (int x = 0; x < CHUNK_SIZE; x++) {
@@ -157,6 +168,7 @@ void Chunk::randomize() {
             for (int z = 0; z < CHUNK_SIZE; z++) {
                 int index = getIndex(x, y, z);
                 blocks[index].isActive = (rand() % 2 == 0) ? false : true;
+                // blocks[index].isActive = true;
             }
         }
     }
@@ -165,52 +177,18 @@ void Chunk::randomize() {
 // void deactivateBlock(Vector2 coords) {
 // }
 
-void Chunk::AddCubeFace(Mesh *mesh, Vector3 p1, Vector3 p2, Vector3 p3,
-                        Vector3 p4, Vector3 normal, int *vCount, int *iCount,
-                        float r, float g, float b, float a) {
+void Chunk::AddCubeFace(ChunkMesh *mesh, int p1, int p2, int p3, int p4,
+                        int *vCount, int *iCount) {
     int v1 = *vCount;
     int v2 = *vCount + 1;
     int v3 = *vCount + 2;
     int v4 = *vCount + 3;
 
     // Add vertices
-    mesh->vertices[v1 * 3] = p1.x;
-    mesh->vertices[v1 * 3 + 1] = p1.y;
-    mesh->vertices[v1 * 3 + 2] = p1.z;
-    mesh->vertices[v2 * 3] = p2.x;
-    mesh->vertices[v2 * 3 + 1] = p2.y;
-    mesh->vertices[v2 * 3 + 2] = p2.z;
-    mesh->vertices[v3 * 3] = p3.x;
-    mesh->vertices[v3 * 3 + 1] = p3.y;
-    mesh->vertices[v3 * 3 + 2] = p3.z;
-    mesh->vertices[v4 * 3] = p4.x;
-    mesh->vertices[v4 * 3 + 1] = p4.y;
-    mesh->vertices[v4 * 3 + 2] = p4.z;
-
-    // Add normals
-    for (int i = 0; i < 4; i++) {
-        mesh->normals[(*vCount + i) * 3] = normal.x;
-        mesh->normals[(*vCount + i) * 3 + 1] = normal.y;
-        mesh->normals[(*vCount + i) * 3 + 2] = normal.z;
-    }
-
-    // Add colors
-    for (int i = 0; i < 4; i++) {
-        mesh->colors[(*vCount + i) * 4] = r;
-        mesh->colors[(*vCount + i) * 4 + 1] = g;
-        mesh->colors[(*vCount + i) * 4 + 2] = b;
-        mesh->colors[(*vCount + i) * 4 + 3] = a;
-    }
-
-    // Add texture coordinates (dummy values)
-    mesh->texcoords[(*vCount) * 2] = 0.0f;
-    mesh->texcoords[(*vCount) * 2 + 1] = 0.0f;
-    mesh->texcoords[(*vCount + 1) * 2] = 1.0f;
-    mesh->texcoords[(*vCount + 1) * 2 + 1] = 0.0f;
-    mesh->texcoords[(*vCount + 2) * 2] = 1.0f;
-    mesh->texcoords[(*vCount + 2) * 2 + 1] = 1.0f;
-    mesh->texcoords[(*vCount + 3) * 2] = 0.0f;
-    mesh->texcoords[(*vCount + 3) * 2 + 1] = 1.0f;
+    mesh->vertices[v1] = p1;
+    mesh->vertices[v2] = p2;
+    mesh->vertices[v3] = p3;
+    mesh->vertices[v4] = p4;
 
     // Add indices
     mesh->indices[*iCount] = v1;
@@ -224,18 +202,28 @@ void Chunk::AddCubeFace(Mesh *mesh, Vector3 p1, Vector3 p2, Vector3 p3,
     *iCount += 6;
 }
 
-void Chunk::CreateCube(Mesh *mesh, Vector3 position, float size, int *vCount,
-                       int *iCount, int blockX, int blockY, int blockZ) {
+void Chunk::CreateCube(ChunkMesh *mesh, int blockX, int blockY, int blockZ,
+                       float size, int *vCount, int *iCount) {
     float hs = size / 2.0f;
 
-    Vector3 p1 = {position.x - hs, position.y - hs, position.z + hs};
-    Vector3 p2 = {position.x + hs, position.y - hs, position.z + hs};
-    Vector3 p3 = {position.x + hs, position.y + hs, position.z + hs};
-    Vector3 p4 = {position.x - hs, position.y + hs, position.z + hs};
-    Vector3 p5 = {position.x + hs, position.y - hs, position.z - hs};
-    Vector3 p6 = {position.x - hs, position.y - hs, position.z - hs};
-    Vector3 p7 = {position.x - hs, position.y + hs, position.z - hs};
-    Vector3 p8 = {position.x + hs, position.y + hs, position.z - hs};
+    // TODO: casts here?
+    // TODO: ignore normals for now
+    int p1 = Chunk::packVertex(blockX - hs, blockY - hs, blockZ + hs, 1,
+                               BlockType::Grass);
+    int p2 = Chunk::packVertex(blockX + hs, blockY - hs, blockZ + hs, 1,
+                               BlockType::Grass);
+    int p3 = Chunk::packVertex(blockX + hs, blockY + hs, blockZ + hs, 1,
+                               BlockType::Grass);
+    int p4 = Chunk::packVertex(blockX - hs, blockY + hs, blockZ + hs, 1,
+                               BlockType::Grass);
+    int p5 = Chunk::packVertex(blockX + hs, blockY - hs, blockZ - hs, 1,
+                               BlockType::Grass);
+    int p6 = Chunk::packVertex(blockX - hs, blockY - hs, blockZ - hs, 1,
+                               BlockType::Grass);
+    int p7 = Chunk::packVertex(blockX - hs, blockY + hs, blockZ - hs, 1,
+                               BlockType::Grass);
+    int p8 = Chunk::packVertex(blockX - hs, blockY + hs, blockZ - hs, 1,
+                               BlockType::Grass);
 
     bool lDefault = false;
     bool lXNegative = lDefault;
@@ -257,40 +245,34 @@ void Chunk::CreateCube(Mesh *mesh, Vector3 position, float size, int *vCount,
     if (blockZ < CHUNK_SIZE - 1)
         lZPositive = blocks[getIndex(blockX, blockY, blockZ + 1)].isActive;
 
-    Vector3 n1 = {0.0f, 0.0f, 1.0f};
+    glm::vec3 n1 = {0.0f, 0.0f, 1.0f};
     if (!lZPositive) {
-        AddCubeFace(mesh, p1, p2, p3, p4, n1, vCount, iCount, 255.0f, 255.0f,
-                    255.0f, 255.0f);
+        AddCubeFace(mesh, p1, p2, p3, p4, vCount, iCount);
     }
 
     if (!lZNegative) {
         n1 = {0.0f, 0.0f, -1.0f};
-        AddCubeFace(mesh, p5, p6, p7, p8, n1, vCount, iCount, 255.0f, 255.0f,
-                    255.0f, 255.0f);
+        AddCubeFace(mesh, p5, p6, p7, p8, vCount, iCount);
     }
 
     if (!lXPositive) {
         n1 = {1.0f, 0.0f, 0.0f};
-        AddCubeFace(mesh, p2, p5, p8, p3, n1, vCount, iCount, 255.0f, 255.0f,
-                    255.0f, 255.0f);
+        AddCubeFace(mesh, p2, p5, p8, p3, vCount, iCount);
     }
 
     if (!lXNegative) {
         n1 = {-1.0f, 0.0f, 0.0f};
-        AddCubeFace(mesh, p6, p1, p4, p7, n1, vCount, iCount, 255.0f, 255.0f,
-                    255.0f, 255.0f);
+        AddCubeFace(mesh, p6, p1, p4, p7, vCount, iCount);
     }
 
     if (!lYPositive) {
         n1 = {0.0f, 1.0f, 0.0f};
-        AddCubeFace(mesh, p4, p3, p8, p7, n1, vCount, iCount, 255.0f, 255.0f,
-                    255.0f, 255.0f);
+        AddCubeFace(mesh, p4, p3, p8, p7, vCount, iCount);
     }
 
     if (!lYNegative) {
         n1 = {0.0f, -1.0f, 0.0f};
-        AddCubeFace(mesh, p6, p5, p2, p1, n1, vCount, iCount, 255.0f, 255.0f,
-                    255.0f, 255.0f);
+        AddCubeFace(mesh, p6, p5, p2, p1, vCount, iCount);
     }
 }
 

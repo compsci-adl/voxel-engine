@@ -1,306 +1,467 @@
-#include "raylib.h"
-#define RAYGUI_IMPLEMENTATION
-#include "ChunkManager.h"
-#include "raygui.h"
-#include "utils.h"
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 
-#include <limits>
+#include <ft2build.h>
+#include FT_FREETYPE_H
 
-const int referenceScreenWidth = 800;
-const int referenceScreenHeight = 640;
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
-// Function to calculate the scaling factor
-float GetScalingFactor(int currentWidth, int currentHeight) {
-    float scaleX = (float)currentWidth / referenceScreenWidth;
-    float scaleY = (float)currentHeight / referenceScreenHeight;
-    return fminf(scaleX, scaleY);
-}
+#include <learnopengl/shader_m.h>
 
-//------------------------------------------------------------------------------------
-// Program main entry point
-//------------------------------------------------------------------------------------
-int main(void) {
-    // Initialization
-    //--------------------------------------------------------------------------------------
-    const int screenWidth = 1280;
-    const int screenHeight = 720;
+#include <iostream>
+#include <map>
+#include "smolgl.h"
+#include "Chunk.h"
 
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE); // Window configuration flags
-    InitWindow(screenWidth, screenHeight, "voxel-engine");
+struct Character {
+    unsigned int TextureID; // ID handle of the glyph texture
+    glm::ivec2   Size;      // Size of glyph
+    glm::ivec2   Bearing;   // Offset from baseline to left/top of glyph
+    FT_Pos Advance;   // Offset to advance to next glyph
+};
 
-    // Define the camera to look into our 3d world (position, target, up vector)
-    Camera camera = {0};
-    camera.position = {0.0f, 2.0f, 0.01f}; // Camera position
-    camera.target = {0.0f, 2.0f, 0.0f};    // Camera looking at point
-    camera.up = {0.0f, 1.0f,
-                 0.0f};  // Camera up vector (rotation towards target)
-    camera.fovy = 60.0f; // Camera field-of-view Y
-    camera.projection = CAMERA_PERSPECTIVE; // Camera projection type
+std::map<char, Character> Characters;
+unsigned int textVAO, textVBO;
+void initFreeType();
 
-    // settings menu
-    bool showSettings = false;
-    bool editMode = false;
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+void processInput(GLFWwindow *window);
+std::string calculateFPS(float deltaTime);
+void renderText(Shader &shader, std::string text, float x, float y, float scale, glm::vec3 color);
 
-    // settings
-    float movementSpeed = 0.1f;
+// settings
+// const unsigned int SCR_WIDTH = 800;
+// const unsigned int SCR_HEIGHT = 600;
 
-    int cameraMode = CAMERA_FREE;
+// // camera
+// glm::vec3 cameraPos   = glm::vec3(0.0f, 0.0f, 3.0f);
+// glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+// glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f, 0.0f);
 
-    DisableCursor(); // Limit cursor to relative movement inside the window
-    GuiSetStyle(LABEL, TEXT + (guiState * 3), 0xff00ff);
-    GuiSetStyle(SLIDER, TEXT + (guiState * 3), 0xff00ff);
+// bool firstMouse = true;
+// float yaw   = -90.0f;	// yaw is initialized to -90.0 degrees since a yaw of 0.0 results in a direction vector pointing to the right so we initially rotate a bit to the left.
+// float pitch =  0.0f;
+// float lastX =  800.0f / 2.0;
+// float lastY =  600.0 / 2.0;
+// float fov   =  90.0f;
 
-    // SetTargetFPS(144);                   // Set our game to run at 60
-    // frames-per-second
-    //--------------------------------------------------------------------------------------
+// timing
+float deltaTime = 0.0f;	// time between current frame and last frame
+float lastFrame = 0.0f;
 
-    bool fullscreen = false;
+int main()
+{
+    // glfw: initialize and configure
+    // ------------------------------
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    // Chunk chunk = Chunk({0.0, 0.0, 0.0});
-    // chunk.randomize();
-    // chunk.load();
-    // chunk.setup();
-    ChunkManager chunkManager = ChunkManager(3);
-    Ray mouseRay = {0};
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
 
-    // Main game loop
-    while (!WindowShouldClose()) // Detect window close button or ESC key
+    // glfw window creation
+    // --------------------
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "woksol", NULL, NULL);
+    if (window == NULL)
     {
-        // Update
-        //----------------------------------------------------------------------------------
-        // Switch camera mode
-        if (IsKeyPressed(KEY_ONE)) {
-            cameraMode = CAMERA_FREE;
-            camera.up = {0.0f, 1.0f, 0.0f}; // Reset roll
-        }
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);
+    glfwSwapInterval(0);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
-        if (IsKeyPressed(KEY_TWO)) {
-            cameraMode = CAMERA_FIRST_PERSON;
-            camera.up = {0.0f, 1.0f, 0.0f}; // Reset roll
-        }
+    // tell GLFW to capture our mouse
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-        if (IsKeyPressed(KEY_THREE)) {
-            cameraMode = CAMERA_THIRD_PERSON;
-            camera.up = {0.0f, 1.0f, 0.0f}; // Reset roll
-        }
-
-        if (IsKeyPressed(KEY_FOUR)) {
-            cameraMode = CAMERA_ORBITAL;
-            camera.up = {0.0f, 1.0f, 0.0f}; // Reset roll
-        }
-
-        // Switch camera projection
-        if (IsKeyPressed(KEY_P)) {
-            if (camera.projection == CAMERA_PERSPECTIVE) {
-                // Create isometric view
-                cameraMode = CAMERA_THIRD_PERSON;
-                // Note: The target distance is related to the render distance
-                // in the orthographic projection
-                camera.position = {0.0f, 2.0f, -100.0f};
-                camera.target = {0.0f, 0.0f, 0.0f};
-                camera.up = {0.0f, 1.0f, 0.0f};
-                camera.projection = CAMERA_ORTHOGRAPHIC;
-                camera.fovy = 20.0f; // near plane width in CAMERA_ORTHOGRAPHIC
-                CameraYaw(&camera, -135 * DEG2RAD, true);
-                CameraPitch(&camera, -45 * DEG2RAD, true, true, false);
-            } else if (camera.projection == CAMERA_ORTHOGRAPHIC) {
-                // Reset to default view
-                cameraMode = CAMERA_THIRD_PERSON;
-                camera.position = {0.0f, 2.0f, 10.0f};
-                camera.target = {0.0f, 2.0f, 0.0f};
-                camera.up = {0.0f, 1.0f, 0.0f};
-                camera.projection = CAMERA_PERSPECTIVE;
-                camera.fovy = 60.0f;
-            }
-        }
-
-        // Toggle fullscreen
-        if (IsKeyPressed(KEY_F11)) {
-            fullscreen = !fullscreen;
-            ToggleFullscreen();
-        }
-
-        if (IsKeyPressed(KEY_X)) {
-            chunkManager.genChunk = !chunkManager.genChunk;
-        }
-
-        if (IsKeyPressed(KEY_B)) {
-            editMode = !editMode;
-            if (editMode) {
-                EnableCursor();
-            } else {
-                DisableCursor();
-            }
-        }
-
-        if (IsKeyPressed(KEY_TAB)) {
-            showSettings = !showSettings;
-            if (showSettings) {
-                EnableCursor();
-            } else {
-                if (!editMode)
-                    DisableCursor();
-            }
-        }
-
-        if (IsKeyPressed(KEY_F3)) {
-            Chunk::debugMode = !Chunk::debugMode;
-        }
-
-        // Update camera computes movement internally depending on the camera
-        // mode Some default standard keyboard/mouse inputs are hardcoded to
-        // simplify use For advanced camera controls, it's recommended to
-        // compute camera movement manually
-        if (!showSettings) {
-            if (!editMode) {
-                CustomUpdateCamera(&camera, cameraMode,
-                                   movementSpeed); // Update camera
-            }
-            // deactivate block if clicked, and subsequently update the chunk
-            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                // get ray mouse ray
-                mouseRay = GetScreenToWorldRay(GetMousePosition(), camera);
-                // check which chunks the ray hit
-                Chunk *chunkHit = nullptr;
-                float nearestHitDistance = std::numeric_limits<float>::max();
-                // obtain nearest chunk
-                for (auto pointChunk : chunkManager.chunks) {
-                    Chunk *chunk = pointChunk.second;
-                    RayCollision mouseChunkCollision =
-                        GetRayCollisionBox(mouseRay, chunk->getBoundingBox());
-                    if (mouseChunkCollision.hit) {
-                        if (mouseChunkCollision.distance < nearestHitDistance) {
-                            chunkHit = chunk;
-                            nearestHitDistance = mouseChunkCollision.distance;
-                        }
-                    }
-                }
-
-                if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                    // rescramble that chunk to force it to update later
-                    if (chunkHit != nullptr) {
-                        printf("scramble\n");
-                        chunkHit->randomize();
-                        chunkManager.QueueChunkToRebuild(chunkHit);
-                    }
-                }
-            }
-        }
-
-        //----------------------------------------------------------------------------------
-
-        // Draw
-        //----------------------------------------------------------------------------------
-        BeginDrawing();
-
-        ClearBackground(DARKGRAY);
-
-        BeginMode3D(camera);
-
-        // Draw cubes
-        // Color col = BLUE;
-        // col.a = 100.0f;
-        // DrawCube({ 0.0f, 0.0f, 0.0f }, 10.0f, 10.0f, 10.0f, col);     // Draw
-        // a blue wall
-        DrawCubeWires({0.0f, 0.0f, 0.0f}, 10.0f, 10.0f, 10.0f,
-                      BLACK); // Draw a blue wall
-        // chunk.render();
-        chunkManager.update(0.0, camera.position, camera.target);
-        chunkManager.render();
-        DrawRay(mouseRay, RED);
-
-        // Draw player cube
-        if (cameraMode == CAMERA_THIRD_PERSON) {
-            DrawCube(camera.target, 0.5f, 0.5f, 0.5f, PURPLE);
-            DrawCubeWires(camera.target, 0.5f, 0.5f, 0.5f, DARKPURPLE);
-        }
-
-        EndMode3D();
-
-        // Get current screen width and height
-        int currentScreenWidth = GetScreenWidth();
-        int currentScreenHeight = GetScreenHeight();
-
-        // Calculate scaling factor
-        float scale = GetScalingFactor(currentScreenWidth, currentScreenHeight);
-
-        // GUI controls using raygui
-        GuiLabel({15 * scale, 5, 300 * scale, 10 * scale},
-                 TextFormat("FPS: %i", GetFPS()));
-
-        // show settings
-        if (showSettings) {
-            GuiLabel({15 * scale, 15, 300 * scale, 10 * scale}, "Controls:");
-            GuiLabel(
-                {15 * scale, 30, 300 * scale, 10 * scale},
-                "- Move keys: W, A, S, D, Space, L-Ctrl, Edit: B, Debug: F3");
-            GuiLabel({15 * scale, 45, 300 * scale, 10 * scale},
-                     "- Scramble Chunk: L-SHIFT + MOUSE 1");
-            GuiLabel({15 * scale, 60, 300 * scale, 10 * scale},
-                     "- Look around: arrow keys or mouse");
-            GuiLabel({15 * scale, 75, 300 * scale, 10 * scale},
-                     "- Camera mode keys: 1, 2, 3, 4");
-            GuiLabel({15 * scale, 90, 300 * scale, 10 * scale},
-                     "- Zoom keys: num-plus, num-minus or mouse scroll");
-            GuiLabel({15 * scale, 105, 300 * scale, 10 * scale},
-                     "- Camera projection key: P");
-            GuiLabel({15 * scale, 120, 300 * scale, 10 * scale},
-                     "- Toggle Chunk Gen: X");
-            GuiLabel({15 * scale, 135, 300 * scale, 10 * scale},
-                     "- Toggle fullscreen: F11");
-            GuiLabel({15 * scale, 150, 300 * scale, 10 * scale},
-                     "- Open settings: TAB");
-            GuiLabel({15 * scale, 180, 300 * scale, 10 * scale},
-                     TextFormat("- Frametime: %fms", GetFrameTime() * 1000));
-            GuiLabel({15 * scale, 195, 300 * scale, 10 * scale},
-                     TextFormat("- Chunk Gen: %s",
-                                chunkManager.genChunk ? "On" : "Off"));
-            GuiLabel(
-                {15 * scale, 210, 300 * scale, 10 * scale},
-                TextFormat("- Debug: %s", Chunk::debugMode ? "On" : "Off"));
-
-            GuiLabel({976 * scale, 15, 300 * scale, 10 * scale},
-                     "Camera status:");
-            GuiLabel({976 * scale, 30, 300 * scale, 10 * scale},
-                     TextFormat(
-                         "- Mode: %s",
-                         (cameraMode == CAMERA_FREE)           ? "FREE"
-                         : (cameraMode == CAMERA_FIRST_PERSON) ? "FIRST_PERSON"
-                         : (cameraMode == CAMERA_THIRD_PERSON) ? "THIRD_PERSON"
-                         : (cameraMode == CAMERA_ORBITAL)      ? "ORBITAL"
-                                                               : "CUSTOM"));
-            GuiLabel({976 * scale, 45, 300 * scale, 10 * scale},
-                     TextFormat("- Projection: %s",
-                                (camera.projection == CAMERA_PERSPECTIVE)
-                                    ? "PERSPECTIVE"
-                                : (camera.projection == CAMERA_ORTHOGRAPHIC)
-                                    ? "ORTHOGRAPHIC"
-                                    : "CUSTOM"));
-            GuiLabel({976 * scale, 60, 300 * scale, 10 * scale},
-                     TextFormat("- Position: (%06.3f, %06.3f, %06.3f)",
-                                camera.position.x, camera.position.y,
-                                camera.position.z));
-            GuiLabel({976 * scale, 75, 300 * scale, 10 * scale},
-                     TextFormat("- Target: (%06.3f, %06.3f, %06.3f)",
-                                camera.target.x, camera.target.y,
-                                camera.target.z));
-            GuiLabel({976 * scale, 90, 300 * scale, 10 * scale},
-                     TextFormat("- Up: (%06.3f, %06.3f, %06.3f)", camera.up.x,
-                                camera.up.y, camera.up.z));
-
-            GuiSlider({100 * scale, 500, 300 * scale, 10 * scale},
-                      TextFormat("Move Speed: %0.2f", movementSpeed), NULL,
-                      &movementSpeed, 0.01f, 10.0f);
-        }
-
-        EndDrawing();
-        //----------------------------------------------------------------------------------
+    // glad: load all OpenGL function pointers
+    // ---------------------------------------
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        std::cout << "Failed to initialize GLAD" << std::endl;
+        return -1;
     }
 
-    // De-Initialization
-    //--------------------------------------------------------------------------------------
-    CloseWindow(); // Close window and OpenGL context
-    //--------------------------------------------------------------------------------------
+    // configure global opengl state
+    // -----------------------------
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    // initFreeType();
+
+    // build and compile shader programs
+    // ------------------------------------
+    Shader ourShader("src/shaders/camera.vert", "src/shaders/camera.frag");
+    Shader textShader("src/shaders/text.vert", "src/shaders/text.frag");
+
+    textShader.use();
+    glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(SCR_WIDTH), 0.0f, static_cast<float>(SCR_HEIGHT));
+    glUniformMatrix4fv(glGetUniformLocation(textShader.ID, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+    // set up vertex data (and buffer(s)) and configure vertex attributes
+    // ------------------------------------------------------------------
+    // int vertices[] = {
+    //     Chunk::packVertex(-1, -1, -1, 0, 1),  
+    //     Chunk::packVertex( 1, -1, -1, 0, 1),  
+    //     Chunk::packVertex( 1,  1, -1, 0, 1),  
+    //     Chunk::packVertex( 1,  1, -1, 0, 1),  
+    //     Chunk::packVertex(-1,  1, -1, 0, 1),  
+    //     Chunk::packVertex(-1, -1, -1, 0, 1),  
+
+    //     Chunk::packVertex(-1, -1,  1, 0, 1),  
+    //     Chunk::packVertex( 1, -1,  1, 0, 1),  
+    //     Chunk::packVertex( 1,  1,  1, 0, 1),  
+    //     Chunk::packVertex( 1,  1,  1, 0, 1),  
+    //     Chunk::packVertex(-1,  1,  1, 0, 1),  
+    //     Chunk::packVertex(-1, -1,  1, 0, 1),  
+
+    //     Chunk::packVertex(-1,  1,  1, 0, 1),  
+    //     Chunk::packVertex(-1,  1, -1, 0, 1),  
+    //     Chunk::packVertex(-1, -1, -1, 0, 1),  
+    //     Chunk::packVertex(-1, -1, -1, 0, 1),  
+    //     Chunk::packVertex(-1, -1,  1, 0, 1),  
+    //     Chunk::packVertex(-1,  1,  1, 0, 1),  
+
+    //     Chunk::packVertex( 1,  1,  1, 0, 1),  
+    //     Chunk::packVertex( 1,  1, -1, 0, 1),  
+    //     Chunk::packVertex( 1, -1, -1, 0, 1),  
+    //     Chunk::packVertex( 1, -1, -1, 0, 1),  
+    //     Chunk::packVertex( 1, -1,  1, 0, 1),  
+    //     Chunk::packVertex( 1,  1,  1, 0, 1),  
+
+    //     Chunk::packVertex(-1, -1, -1, 0, 1),  
+    //     Chunk::packVertex( 1, -1, -1, 0, 1),  
+    //     Chunk::packVertex( 1, -1,  1, 0, 1),  
+    //     Chunk::packVertex( 1, -1,  1, 0, 1),  
+    //     Chunk::packVertex(-1, -1,  1, 0, 1),  
+    //     Chunk::packVertex(-1, -1, -1, 0, 1),  
+
+    //     Chunk::packVertex(-1,  1, -1, 0, 1),  
+    //     Chunk::packVertex( 1,  1, -1, 0, 1),  
+    //     Chunk::packVertex( 1,  1,  1, 0, 1),  
+    //     Chunk::packVertex( 1,  1,  1, 0, 1),  
+    //     Chunk::packVertex(-1,  1,  1, 0, 1),  
+    //     Chunk::packVertex(-1,  1, -1, 0, 1)   
+    // };
+    // // world space positions of our cubes
+    // glm::vec3 cubePositions[] = {
+    //     // glm::vec3(5.0f,  5.0f,  5.0f),
+    //     glm::vec3( 2.0f,  5.0f, -15.0f),
+    //     glm::vec3(-1.5f, -2.2f, -2.5f),
+    //     glm::vec3(-3.8f, -2.0f, -12.3f),
+    //     glm::vec3( 2.4f, -0.4f, -3.5f),
+    //     glm::vec3(-1.7f,  3.0f, -7.5f),
+    //     glm::vec3( 1.3f, -2.0f, -2.5f),
+    //     glm::vec3( 1.5f,  2.0f, -2.5f),
+    //     glm::vec3( 1.5f,  0.2f, -1.5f),
+    //     glm::vec3(-1.3f,  1.0f, -1.5f)
+    // };
+    // unsigned int VBO, VAO;
+    // glGenVertexArrays(1, &VAO);
+    // glGenBuffers(1, &VBO);
+
+    // glBindVertexArray(VAO);
+
+    // glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // // Set vertex attribute pointers
+    // glVertexAttribIPointer(0, 1, GL_INT, sizeof(int), (void*)0);
+    // glEnableVertexAttribArray(0);
+    Chunk chunk = Chunk(glm::vec3(0.0f, 0.0f, 0.0f), ourShader);
+    chunk.load();
+    chunk.setup();
+
+    std::string fps = "FPS: 0";
+
+    // render loop
+    // -----------
+    while (!glfwWindowShouldClose(window))
+    {
+        // per-frame time logic
+        // --------------------
+        float currentFrame = static_cast<float>(glfwGetTime());
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
+        // input
+        // -----
+        processInput(window);
+
+        // render
+        // ------
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
+
+        chunk.render();
+
+        // Calculate and render FPS
+        std::string newFPS = calculateFPS(deltaTime);
+        fps = newFPS == "" ? fps : newFPS;
+        if (!newFPS.empty()) {
+            std::cout << newFPS << std::endl;
+        }
+        // renderText(textShader, fps, 25.0f, 25.0f, 1.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+
+
+        // Swap buffers and poll IO events
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    // optional: de-allocate all resources once they've outlived their purpose:
+    // ------------------------------------------------------------------------
+    // glDeleteVertexArrays(1, &VAO);
+    // glDeleteBuffers(1, &VBO);
+
+    // glfw: terminate, clearing all previously allocated GLFW resources.
+    // ------------------------------------------------------------------
+    glfwTerminate();
     return 0;
+}
+
+// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
+// ---------------------------------------------------------------------------------------------------------
+void processInput(GLFWwindow *window)
+{
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+
+    float cameraSpeed = static_cast<float>(20 * deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        cameraPos += cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        cameraPos -= cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+}
+
+// glfw: whenever the window size changed (by OS or user resize) this callback function executes
+// ---------------------------------------------------------------------------------------------
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+{
+    // make sure the viewport matches the new window dimensions; note that width and 
+    // height will be significantly larger than specified on retina displays.
+    glViewport(0, 0, width, height);
+}
+
+// Function to calculate and return the FPS as a string
+std::string calculateFPS(float deltaTime) {
+    static int frameCount = 0;
+    static float elapsedTime = 0.0f;
+    static float lastTime = 0.0f;
+
+    elapsedTime += deltaTime;
+    frameCount++;
+
+    if (elapsedTime - lastTime >= 1.0f) { // Update every second
+        lastTime = elapsedTime;
+        float fps = frameCount;
+        frameCount = 0;
+        
+        std::stringstream ss;
+        ss << "FPS: " << fps;
+        return ss.str();
+    }
+
+    return "";
+}
+
+
+// glfw: whenever the mouse moves, this callback is called
+// -------------------------------------------------------
+void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
+{
+    float xpos = static_cast<float>(xposIn);
+    float ypos = static_cast<float>(yposIn);
+
+    if (firstMouse)
+    {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+    lastX = xpos;
+    lastY = ypos;
+
+    float sensitivity = 0.1f; // change this value to your liking
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    yaw += xoffset;
+    pitch += yoffset;
+
+    // make sure that when pitch is out of bounds, screen doesn't get flipped
+    if (pitch > 89.0f)
+        pitch = 89.0f;
+    if (pitch < -89.0f)
+        pitch = -89.0f;
+
+    glm::vec3 front;
+    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.y = sin(glm::radians(pitch));
+    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    cameraFront = glm::normalize(front);
+}
+
+// glfw: whenever the mouse scroll wheel scrolls, this callback is called
+// ----------------------------------------------------------------------
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    fov -= (float)yoffset;
+    if (fov < 1.0f)
+        fov = 1.0f;
+    if (fov > 105.0f)
+        fov = 105.0f;
+}
+
+
+void initFreeType()
+{
+    // FreeType
+    // --------
+    FT_Library ft;
+    // All functions return a value different than 0 whenever an error occurred
+    if (FT_Init_FreeType(&ft))
+    {
+        std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
+    }
+
+	// find path to font
+    std::string font_name = "src/fonts/Menlo-Regular.ttf";
+    if (font_name.empty())
+    {
+        std::cout << "ERROR::FREETYPE: Failed to load font_name" << std::endl;
+    }
+	
+	// load font as face
+    FT_Face face;
+    if (FT_New_Face(ft, font_name.c_str(), 0, &face)) {
+        std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
+    }
+    else {
+        // set size to load glyphs as
+        FT_Set_Pixel_Sizes(face, 0, 48);
+
+        // disable byte-alignment restriction
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+        // load first 128 characters of ASCII set
+        for (unsigned char c = 0; c < 128; c++)
+        {
+            // Load character glyph 
+            if (FT_Load_Char(face, c, FT_LOAD_RENDER))
+            {
+                std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
+                continue;
+            }
+            // generate texture
+            unsigned int texture;
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexImage2D(
+                GL_TEXTURE_2D,
+                0,
+                GL_RED,
+                face->glyph->bitmap.width,
+                face->glyph->bitmap.rows,
+                0,
+                GL_RED,
+                GL_UNSIGNED_BYTE,
+                face->glyph->bitmap.buffer
+            );
+            // set texture options
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            // now store character for later use
+            Character character = {
+                texture,
+                glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
+                glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
+                static_cast<unsigned int>(face->glyph->advance.x)
+            };
+            Characters.insert(std::pair<char, Character>(c, character));
+        }
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+    // destroy FreeType once we're finished
+    FT_Done_Face(face);
+    FT_Done_FreeType(ft);
+
+    
+    // configure VAO/VBO for texture quads
+    // -----------------------------------
+    glGenVertexArrays(1, &textVAO);
+    glGenBuffers(1, &textVBO);
+    glBindVertexArray(textVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, textVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void renderText(Shader &shader, std::string text, float x, float y, float scale, glm::vec3 color)
+{
+    // activate corresponding render state	
+    shader.use();
+
+    glUniform3f(glGetUniformLocation(shader.ID, "textColor"), color.x, color.y, color.z);
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(textVAO);
+
+    // iterate through all characters
+    std::string::const_iterator c;
+    for (c = text.begin(); c != text.end(); c++) 
+    {
+        Character ch = Characters[*c];
+
+        float xpos = x + ch.Bearing.x * scale;
+        float ypos = y - (ch.Size.y - ch.Bearing.y) * scale;
+
+        float w = ch.Size.x * scale;
+        float h = ch.Size.y * scale;
+        // update VBO for each character
+        float vertices[6][4] = {
+            { xpos,     ypos + h,   0.0f, 0.0f },            
+            { xpos,     ypos,       0.0f, 1.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+
+            { xpos,     ypos + h,   0.0f, 0.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+            { xpos + w, ypos + h,   1.0f, 0.0f }           
+        };
+        // render glyph texture over quad
+        glBindTexture(GL_TEXTURE_2D, ch.TextureID);
+        // update content of VBO memory
+        glBindBuffer(GL_ARRAY_BUFFER, textVBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices); // be sure to use glBufferSubData and not glBufferData
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        // render quad
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
+        x += (ch.Advance >> 6) * scale; // bitshift by 6 to get value in pixels (2^6 = 64 (divide amount of 1/64th pixels by 64 to get amount of pixels))
+    }
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
