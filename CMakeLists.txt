@@ -8,19 +8,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Add source files
 file(GLOB SOURCES "src/*.cpp")
 
-# Find FreeType
-if(WIN32)
-    find_package(Freetype REQUIRED)
-    include_directories(${FREETYPE_INCLUDE_DIRS})
-    add_definitions(-D_USE_MATH_DEFINES)
-elseif(APPLE)
-    find_package(Freetype REQUIRED)
-    include_directories(${FREETYPE_INCLUDE_DIRS})
-elseif(UNIX)
-    find_package(Freetype REQUIRED)
-    include_directories(${FREETYPE_INCLUDE_DIRS})
-endif()
-
 # Add GLAD
 add_library(glad libs/glad/src/glad.c)
 target_include_directories(glad PUBLIC libs/glad/include)
@@ -49,10 +36,6 @@ add_executable(voxel-engine ${SOURCES})
 # Link libraries
 target_link_libraries(voxel-engine glad glfw glm::glm${CMAKE_DL_LIBS})
 target_include_directories(voxel-engine PRIVATE libs/glad/include)
-# Link against FreeType
-target_link_libraries(voxel-engine ${FREETYPE_LIBRARIES})
-
-
 
 # target_link_libraries(voxel-engine PRIVATE glm::glm)
 

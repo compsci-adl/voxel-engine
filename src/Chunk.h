@@ -21,7 +21,7 @@ typedef struct VoxelPoint3D {
 } VoxelPoint3d;
 
 struct Chunk {
-    static constexpr int CHUNK_SIZE = 32;
+    static constexpr int CHUNK_SIZE = 16;
     static constexpr int CHUNK_SIZE_CUBED =
         CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
     static bool debugMode;
@@ -222,7 +222,7 @@ void Chunk::CreateCube(ChunkMesh *mesh, int blockX, int blockY, int blockZ,
                                BlockType::Grass);
     int p7 = Chunk::packVertex(blockX - hs, blockY + hs, blockZ - hs, 1,
                                BlockType::Grass);
-    int p8 = Chunk::packVertex(blockX - hs, blockY + hs, blockZ - hs, 1,
+    int p8 = Chunk::packVertex(blockX + hs, blockY + hs, blockZ - hs, 1,
                                BlockType::Grass);
 
     bool lDefault = false;
