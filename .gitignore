@@ -2,3 +2,6 @@ build
 *.DS_Store
 .cache
 .vscode
+
+# imgui
+imgui.ini
