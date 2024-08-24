@@ -1,3 +1,8 @@
-[submodule "include/raylib"]
-	path = include/raylib
-	url = https://github.com/Shr1ftyy/raylib.git
+[submodule "libs/glfw"]
+	path = libs/glfw
+	url = https://github.com/glfw/glfw.git
+	ignore = dirty
+[submodule "libs/imgui"]
+	path = libs/imgui
+	url = https://github.com/ocornut/imgui.git
+	ignore = dirty

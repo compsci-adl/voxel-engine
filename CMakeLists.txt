@@ -1,42 +1,92 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.10)
 project(voxel-engine)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# Define the installation directory
-set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/install)
-# set(GRAPHICS "GRAPHICS_API_OPENGL_21")
+# Add source files
+file(GLOB SOURCES "src/*.cpp")
 
-# Add your libraries and include directories
-add_subdirectory(include/raylib)
+# Add GLAD
+add_library(glad libs/glad/src/glad.c)
+target_include_directories(glad PUBLIC libs/glad/include)
+include_directories(libs/)
+include_directories(learnopengl libs/learnopengl)
 
-include_directories(
-    include
-    include/raylib/src
-    src
+# Add GLFW
+add_subdirectory(libs/glfw)
+set(GLFW_BUILD_EXAMPLES OFF)
+set(GLFW_BUILD_TESTS OFF)
+set(GLFW_BUILD_DOCS OFF)
+# GLM
+include(FetchContent)
+
+FetchContent_Declare(
+	glm
+	GIT_REPOSITORY	https://github.com/g-truc/glm.git
+	GIT_TAG 	bf71a834948186f4097caa076cd2663c69a10e1e #refs/tags/1.0.1
 )
 
-file(GLOB_RECURSE SRCS src/*.cpp)
+FetchContent_MakeAvailable(glm)
 
-set(PROJECT_NAME_LIB ${PROJECT_NAME}_lib)
-add_library(${PROJECT_NAME_LIB} STATIC ${SRCS})
+set(IMGUI_PATH ${CMAKE_CURRENT_LIST_DIR}/libs/imgui)
+file(GLOB IMGUI_GLOB
+    ${IMGUI_PATH}/imgui.h
+    ${IMGUI_PATH}/imgui.cpp
+    ${IMGUI_PATH}/imconfig.h
+    ${IMGUI_PATH}/imgui_demo.cpp
+    ${IMGUI_PATH}/imgui_draw.cpp
+    ${IMGUI_PATH}/imgui_internal.h
+    ${IMGUI_PATH}/imstb_rectpack.h
+    ${IMGUI_PATH}/imstb_textedit.h
+    ${IMGUI_PATH}/imstb_truetype.h
+    ${IMGUI_PATH}/imgui_tables.cpp
+    ${IMGUI_PATH}/imgui_widgets.cpp
 
-add_executable(${PROJECT_NAME} src/main.cpp)
+    # specific bindings...
+    ${IMGUI_PATH}/backends/imgui_impl_glfw.h
+    ${IMGUI_PATH}/backends/imgui_impl_glfw.cpp
+    ${IMGUI_PATH}/backends/imgui_impl_opengl3.h
+    ${IMGUI_PATH}/backends/imgui_impl_opengl3.cpp
+    ${IMGUI_PATH}/backends/imgui_impl_opengl3_loader.cpp
+    )
 
-target_include_directories(${PROJECT_NAME_LIB} PRIVATE
-    include
-    include/raylib/src
+add_library("imgui" STATIC ${IMGUI_GLOB})
+target_include_directories("imgui" PUBLIC ${IMGUI_PATH})
+target_link_libraries("imgui" PRIVATE glfw)
+
+# Add the executable
+add_executable(voxel-engine ${SOURCES})
+
+# Link libraries
+target_include_directories(voxel-engine PRIVATE libs/glad/include)
+target_include_directories(voxel-engine PRIVATE ${IMGUI_PATH})
+target_include_directories(voxel-engine PRIVATE ${IMGUI_PATH}/backends)
+target_link_libraries(voxel-engine glad glfw glm::glm${CMAKE_DL_LIBS} "imgui")
+
+# target_link_libraries(voxel-engine PRIVATE glm::glm)
+
+
+# Define the shaders directory
+set(SHADERS_SRC_DIR "${CMAKE_SOURCE_DIR}/src/shaders")
+set(SHADERS_DST_DIR "${CMAKE_BINARY_DIR}/shaders")
+
+# Add a custom command to copy shaders to the build directory
+add_custom_command(
+    TARGET voxel-engine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${SHADERS_SRC_DIR} ${SHADERS_DST_DIR}
 )
 
-target_link_libraries(${PROJECT_NAME}
-    ${PROJECT_NAME_LIB}
-    raylib
-    # -static-libstdc++  # Statically link libstdc++
+# Add custom target to ensure shaders are copied before build
+add_custom_target(copy_shaders ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${SHADERS_SRC_DIR} ${SHADERS_DST_DIR}
+    DEPENDS ${SOURCES}
 )
+add_dependencies(voxel-engine copy_shaders)
 
-# Install the executable and libraries
-install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME_LIB}
-    RUNTIME DESTINATION bin
-    ARCHIVE DESTINATION lib
-)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+

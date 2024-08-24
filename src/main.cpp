@@ -1,194 +1,414 @@
-#include "raylib.h"
-#include "rcamera.h"
-#define RAYGUI_IMPLEMENTATION
-#include "raygui.h"
-#include <math.h>
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
+#include <learnopengl/shader_m.h>
+
+#include "Chunk.h"
 #include "ChunkManager.h"
+#include "smolgl.h"
+#include <iostream>
+#include <unordered_map>
+#include <glfw/src/internal.h>
+#include "utils.h"
 
-const int referenceScreenWidth = 800;
-const int referenceScreenHeight = 640;
+void framebuffer_size_callback(GLFWwindow *window, int width, int height);
+void mouse_callback(GLFWwindow *window, double xpos, double ypos);
+void imgui_mouse_callback(GLFWwindow *window, double xpos, double ypos);
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
+void processInput(GLFWwindow *window, bool *cursorOn);
+int calculateFPS(float deltaTime);
+float calculateMemUsage();
+void renderText(Shader &shader, std::string text, float x, float y, float scale,
+                glm::vec3 color);
 
-// Function to calculate the scaling factor
-float GetScalingFactor(int currentWidth, int currentHeight) {
-    float scaleX = (float)currentWidth / referenceScreenWidth;
-    float scaleY = (float)currentHeight / referenceScreenHeight;
-    return fminf(scaleX, scaleY);
-}
+// timing
+float deltaTime = 0.0f; // time between current frame and last frame
+float lastFrame = 0.0f;
 
-//------------------------------------------------------------------------------------
-// Program main entry point
-//------------------------------------------------------------------------------------
-int main(void)
-{
-    // Initialization
-    //--------------------------------------------------------------------------------------
-    const int screenWidth = 1280;
-    const int screenHeight = 720;
+// key press map
+std::unordered_map<int, bool> keyPressMap;
 
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE);    // Window configuration flags
-    InitWindow(screenWidth, screenHeight, "voxel-engine");
+ChunkManager chunkManager;
+const int FPS_HISTORY_CAP = 5000;
+const int MEM_HISTORY_CAP = 5000;
+std::vector<float> fpsHistory;
+std::vector<float> memHistory;
 
-    // Define the camera to look into our 3d world (position, target, up vector)
-    Camera camera = { 0 };
-    camera.position = { 0.0f, 2.0f, 4.0f };    // Camera position
-    camera.target = { 0.0f, 2.0f, 0.0f };      // Camera looking at point
-    camera.up = { 0.0f, 1.0f, 0.0f };          // Camera up vector (rotation towards target)
-    camera.fovy = 60.0f;                                // Camera field-of-view Y
-    camera.projection = CAMERA_PERSPECTIVE;             // Camera projection type
+int main() {
+    // glfw: initialize and configure
+    // ------------------------------
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    int cameraMode = CAMERA_FREE;
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
 
-    DisableCursor();                    // Limit cursor to relative movement inside the window
-    GuiSetStyle(LABEL, TEXT + (guiState * 3), 0xff00ff);
+    // glfw window creation
+    // --------------------
+    GLFWwindow *window =
+        glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "woksol", NULL, NULL);
+    if (window == NULL) {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);
+    glfwSwapInterval(0);
 
-    // SetTargetFPS(144);                   // Set our game to run at 60 frames-per-second
-    //--------------------------------------------------------------------------------------
+    // imgui!!!
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
+    io.ConfigFlags |=
+        ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
+    io.ConfigFlags |=
+        ImGuiConfigFlags_NavEnableGamepad; // Enable Gamepad Controls
+    // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // IF using Docking
+    // Branch
 
-    bool fullscreen = false;
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(
+        window, true); // Second param install_callback=true will install GLFW
+                       // callbacks and chain to existing ones.
+    ImGui_ImplOpenGL3_Init(nullptr);
 
-    // Chunk chunk = Chunk({0.0, 0.0, 0.0});
-    // chunk.randomize();
-    // chunk.load();
-    // chunk.setup();
-    ChunkManager chunkManager = ChunkManager(3);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
-    // Main game loop
-    while (!WindowShouldClose())        // Detect window close button or ESC key
-    {
-        // Update
-        //----------------------------------------------------------------------------------
-        // Switch camera mode
-        if (IsKeyPressed(KEY_ONE))
-        {
-            cameraMode = CAMERA_FREE;
-            camera.up = { 0.0f, 1.0f, 0.0f }; // Reset roll
-        }
+    // tell GLFW to capture our mouse
+    bool cursorOn = false;
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-        if (IsKeyPressed(KEY_TWO))
-        {
-            cameraMode = CAMERA_FIRST_PERSON;
-            camera.up = { 0.0f, 1.0f, 0.0f }; // Reset roll
-        }
-
-        if (IsKeyPressed(KEY_THREE))
-        {
-            cameraMode = CAMERA_THIRD_PERSON;
-            camera.up = { 0.0f, 1.0f, 0.0f }; // Reset roll
-        }
-
-        if (IsKeyPressed(KEY_FOUR))
-        {
-            cameraMode = CAMERA_ORBITAL;
-            camera.up = { 0.0f, 1.0f, 0.0f }; // Reset roll
-        }
-
-        // Switch camera projection
-        if (IsKeyPressed(KEY_P))
-        {
-            if (camera.projection == CAMERA_PERSPECTIVE)
-            {
-                // Create isometric view
-                cameraMode = CAMERA_THIRD_PERSON;
-                // Note: The target distance is related to the render distance in the orthographic projection
-                camera.position = { 0.0f, 2.0f, -100.0f };
-                camera.target = { 0.0f, 0.0f, 0.0f };
-                camera.up = { 0.0f, 1.0f, 0.0f };
-                camera.projection = CAMERA_ORTHOGRAPHIC;
-                camera.fovy = 20.0f; // near plane width in CAMERA_ORTHOGRAPHIC
-                CameraYaw(&camera, -135 * DEG2RAD, true);
-                CameraPitch(&camera, -45 * DEG2RAD, true, true, false);
-            }
-            else if (camera.projection == CAMERA_ORTHOGRAPHIC)
-            {
-                // Reset to default view
-                cameraMode = CAMERA_THIRD_PERSON;
-                camera.position = { 0.0f, 2.0f, 10.0f };
-                camera.target = { 0.0f, 2.0f, 0.0f };
-                camera.up = { 0.0f, 1.0f, 0.0f };
-                camera.projection = CAMERA_PERSPECTIVE;
-                camera.fovy = 60.0f;
-            }
-        }
-
-        // Toggle fullscreen
-        if (IsKeyPressed(KEY_F11))
-        {
-            fullscreen = !fullscreen;
-            ToggleFullscreen();
-        }
-
-        if (IsKeyPressed(KEY_X)) {
-            chunkManager.genChunk = !chunkManager.genChunk;
-        }
-
-        // Update camera computes movement internally depending on the camera mode
-        // Some default standard keyboard/mouse inputs are hardcoded to simplify use
-        // For advanced camera controls, it's recommended to compute camera movement manually
-        UpdateCamera(&camera, cameraMode);                  // Update camera
-
-        //----------------------------------------------------------------------------------
-
-        // Draw
-        //----------------------------------------------------------------------------------
-        BeginDrawing();
-
-            ClearBackground(DARKGRAY);
-
-            BeginMode3D(camera);
-
-                // Draw cubes
-                // DrawCube({ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLUE);     // Draw a blue wall
-                DrawCubeWires({ -1.6f, -1.6f, -1.6f }, 1.6f, 1.6f, 1.6f, BLACK);     // Draw a blue wall
-                // chunk.render();
-                chunkManager.Update(0.0, camera.position, camera.target);
-                chunkManager.Render();
-
-                // Draw player cube
-                if (cameraMode == CAMERA_THIRD_PERSON)
-                {
-                    DrawCube(camera.target, 0.5f, 0.5f, 0.5f, PURPLE);
-                    DrawCubeWires(camera.target, 0.5f, 0.5f, 0.5f, DARKPURPLE);
-                }
-
-            EndMode3D();
-
-            // Get current screen width and height
-            int currentScreenWidth = GetScreenWidth();
-            int currentScreenHeight = GetScreenHeight();
-
-            // Calculate scaling factor
-            float scale = GetScalingFactor(currentScreenWidth, currentScreenHeight);
-
-            // GUI controls using raygui
-            GuiLabel({ 15 * scale, 15, 300 * scale, 10 * scale }, "Camera controls:");
-            GuiLabel({ 15 * scale, 30, 300 * scale, 10 * scale }, "- Move keys: W, A, S, D, Space, Left-Ctrl");
-            GuiLabel({ 15 * scale, 45, 300 * scale, 10 * scale }, "- Look around: arrow keys or mouse");
-            GuiLabel({ 15 * scale, 60, 300 * scale, 10 * scale }, "- Camera mode keys: 1, 2, 3, 4");
-            GuiLabel({ 15 * scale, 75, 300 * scale, 10 * scale }, "- Zoom keys: num-plus, num-minus or mouse scroll");
-            GuiLabel({ 15 * scale, 90, 300 * scale, 10 * scale }, "- Camera projection key: P");
-            GuiLabel({ 15 * scale, 105, 300 * scale, 10 * scale}, "- Toggle fullscreen: F11");
-            GuiLabel({ 15 * scale, 120, 300 * scale, 10 * scale}, TextFormat("- GetFPS: %i", GetFPS()));
-
-            GuiLabel({ 976 * scale, 15, 300 * scale, 10 * scale }, "Camera status:");
-            GuiLabel({ 976 * scale, 30, 300 * scale, 10 * scale }, TextFormat("- Mode: %s", (cameraMode == CAMERA_FREE) ? "FREE" :
-                                                                                                          (cameraMode == CAMERA_FIRST_PERSON) ? "FIRST_PERSON" :
-                                                                                                          (cameraMode == CAMERA_THIRD_PERSON) ? "THIRD_PERSON" :
-                                                                                                          (cameraMode == CAMERA_ORBITAL) ? "ORBITAL" : "CUSTOM"));
-            GuiLabel({ 976 * scale, 45, 300 * scale, 10 * scale }, TextFormat("- Projection: %s", (camera.projection == CAMERA_PERSPECTIVE) ? "PERSPECTIVE" :
-                                                                                                                (camera.projection == CAMERA_ORTHOGRAPHIC) ? "ORTHOGRAPHIC" : "CUSTOM"));
-            GuiLabel({ 976 * scale, 60, 300 * scale, 10 * scale }, TextFormat("- Position: (%06.3f, %06.3f, %06.3f)", camera.position.x, camera.position.y, camera.position.z));
-            GuiLabel({ 976 * scale, 75, 300 * scale, 10 * scale }, TextFormat("- Target: (%06.3f, %06.3f, %06.3f)", camera.target.x, camera.target.y, camera.target.z));
-            GuiLabel({ 976 * scale, 90, 300 * scale, 10 * scale }, TextFormat("- Up: (%06.3f, %06.3f, %06.3f)", camera.up.x, camera.up.y, camera.up.z));
-
-        EndDrawing();
-        //----------------------------------------------------------------------------------
+    // glad: load all OpenGL function pointers
+    // ---------------------------------------
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        std::cout << "Failed to initialize GLAD" << std::endl;
+        return -1;
     }
 
-    // De-Initialization
-    //--------------------------------------------------------------------------------------
-    CloseWindow();        // Close window and OpenGL context
-    //--------------------------------------------------------------------------------------
+    // configure global opengl state
+    // -----------------------------
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    // build and compile shader programs
+    // ------------------------------------
+    Shader *ourShader =
+        new Shader("src/shaders/camera.vert", "src/shaders/camera.frag");
+
+    // glm::vec3 pos = glm::vec3(0, 0, 0);
+    // Chunk chunk = Chunk(pos, ourShader);
+    // chunk.load();
+    // chunk.setup();
+    chunkManager = ChunkManager(3, ourShader);
+
+    char fpsStr[32] = "FPS: 0";
+    char memStr[32];
+
+    // render loop
+    // -----------
+    while (!glfwWindowShouldClose(window)) {
+        // per-frame time logic
+        // --------------------
+        float currentFrame = static_cast<float>(glfwGetTime());
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        // input
+        // -----
+        processInput(window, &cursorOn);
+
+        // render
+        // ------
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // chunk.render();
+        chunkManager.update(deltaTime, cameraPos, cameraPos + cameraFront);
+        chunkManager.render();
+
+        // Rendering
+        // (Your code clears your framebuffer, renders your other stuff etc.)
+        // (Your code calls glfwSwapBuffers() etc.)
+
+        // Calculate  FPS
+        int fps = calculateFPS(deltaTime);
+        float mem = calculateMemUsage();
+        if (fps != -1) {
+            std::sprintf(fpsStr, "FPS: %d", fps);
+        }
+        std::sprintf(memStr, "RAM: %f MB", mem / 1000000);
+
+        ImGui::Begin("Stats");
+        // if(DEBUG){
+        // 	ImGui::DragInt("tps", &g.ticksPerSecond, 1, 0, 1000);
+        // }
+        // Text that appears in the window
+        // ImGui::Text("Hello there adventurer!");
+        ImGui::Text("%s", fpsStr);
+        ImGui::Text("%s", memStr);
+        ImGui::Text("Camera:");
+        ImGui::Text("fov: %.3f", fov);
+        ImGui::Text("pos: (%.3f, %.3f, %.3f)", cameraPos.x, cameraPos.y,
+                    cameraPos.z);
+        ImGui::Text("left: (%.3f, %.3f, %.3f)", cameraLeft.x, cameraLeft.y,
+                    cameraLeft.z);
+        ImGui::Text("right: (%.3f, %.3f, %.3f)", cameraRight.x, cameraRight.y,
+                    cameraRight.z);
+        ImGui::Text("up: (%.3f, %.3f, %.3f)", cameraUp.x, cameraUp.y,
+                    cameraUp.z);
+        ImGui::Text("frustum:");
+        ImGui::Text("left d = %.3f",
+                    frustum.planes[Frustum::FRUSTUM_LEFT].distance);
+        ImGui::Text("right d = %.3f",
+                    frustum.planes[Frustum::FRUSTUM_RIGHT].distance);
+        ImGui::Text("left: n:(%.3f, %.3f, %.3f)\nright: n:(%.3f, %.3f, %.3f)",
+                    frustum.planes[Frustum::FRUSTUM_LEFT].normal.x,
+                    frustum.planes[Frustum::FRUSTUM_LEFT].normal.y,
+                    frustum.planes[Frustum::FRUSTUM_LEFT].normal.z,
+                    frustum.planes[Frustum::FRUSTUM_RIGHT].normal.x,
+                    frustum.planes[Frustum::FRUSTUM_RIGHT].normal.y,
+                    frustum.planes[Frustum::FRUSTUM_RIGHT].normal.z);
+
+        ImGui::Text("near: n:(%.3f, %.3f, %.3f)\nfar: n:(%.3f, %.3f, %.3f)",
+                    frustum.planes[Frustum::FRUSTUM_NEAR].normal.x,
+                    frustum.planes[Frustum::FRUSTUM_NEAR].normal.y,
+                    frustum.planes[Frustum::FRUSTUM_NEAR].normal.z,
+                    frustum.planes[Frustum::FRUSTUM_FAR].normal.x,
+                    frustum.planes[Frustum::FRUSTUM_FAR].normal.y,
+                    frustum.planes[Frustum::FRUSTUM_FAR].normal.z);
+
+        ImGui::Text("bottom: n:(%.3f, %.3f, %.3f)\ntop: n:(%.3f, %.3f, %.3f)",
+                    frustum.planes[Frustum::FRUSTUM_BOTTOM].normal.x,
+                    frustum.planes[Frustum::FRUSTUM_BOTTOM].normal.y,
+                    frustum.planes[Frustum::FRUSTUM_BOTTOM].normal.z,
+                    frustum.planes[Frustum::FRUSTUM_TOP].normal.x,
+                    frustum.planes[Frustum::FRUSTUM_TOP].normal.y,
+                    frustum.planes[Frustum::FRUSTUM_TOP].normal.z);
+
+        // Slider that appears in the window
+        // Ends the window
+        ImGui::End();
+
+        if (cursorOn) {
+            ImGui::Begin("Debug Menu");
+            // if(DEBUG){
+            // 	ImGui::DragInt("tps", &g.ticksPerSecond, 1, 0, 1000);
+            // }
+            // Text that appears in the window
+            ImGui::Checkbox("generate chunks", &chunkManager.genChunk);
+            ImGui::LabelText("##moveSpeedLabel", "Movement Speed");
+            ImGui::SliderFloat("##moveSpeedSlider", &cameraSpeedMultiplier,
+                               1.0f, 1000.0f);
+            ImGui::LabelText("##renderDistanceLabel", "Render Distance");
+            ImGui::SliderInt("##renderDistanceSlider",
+                             (int *)&chunkManager.chunkAddDistance, 1, 16);
+            ImGui::LabelText("##zFarLabel", "zFar");
+            ImGui::SliderFloat("##zFarSlider", &zFar, 1.0f, 2000.0f);
+            // Slider that appears in the window
+            // Ends the window
+            ImGui::End();
+        }
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        // Swap buffers and poll IO events
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    // optional: de-allocate all resources once they've outlived their purpose:
+    // ------------------------------------------------------------------------
+    // glDeleteVertexArrays(1, &VAO);
+    // glDeleteBuffers(1, &VBO);
+
+    // glfw: terminate, clearing all previously allocated GLFW resources.
+    // ------------------------------------------------------------------
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    glfwTerminate();
     return 0;
 }
 
+// process all input: query GLFW whether relevant keys are pressed/released this
+// frame and react accordingly
+// ---------------------------------------------------------------------------------------------------------
+void processInput(GLFWwindow *window, bool *cursorOn) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+
+    float cameraSpeed = static_cast<float>(cameraSpeedMultiplier * deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        cameraPos += cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        cameraPos -= cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        cameraPos -=
+            glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        cameraPos +=
+            glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        cameraPos += cameraUp * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+        cameraPos -= cameraUp * cameraSpeed;
+    }
+
+    // insert into key press map
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS) {
+        keyPressMap[GLFW_KEY_B] = true;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) {
+        keyPressMap[GLFW_KEY_X] = true;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_RELEASE &&
+        keyPressMap[GLFW_KEY_B]) {
+        *cursorOn = !(*cursorOn);
+        glfwSetCursorPosCallback(window, *cursorOn ? imgui_mouse_callback
+                                                   : mouse_callback);
+        glfwSetScrollCallback(window, *cursorOn ? imgui_mouse_callback
+                                                : scroll_callback);
+        glfwSetInputMode(window, GLFW_CURSOR,
+                         *cursorOn ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+        keyPressMap[GLFW_KEY_B] = false;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_RELEASE &&
+        keyPressMap[GLFW_KEY_X]) {
+        chunkManager.genChunk = !chunkManager.genChunk;
+        keyPressMap[GLFW_KEY_X] = false;
+    }
+
+    frustum = createFrustumFromCamera(SCR_WIDTH / SCR_HEIGHT, fov, zNear, zFar);
+}
+
+// glfw: whenever the window size changed (by OS or user resize) this callback
+// function executes
+// ---------------------------------------------------------------------------------------------
+void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
+    // make sure the viewport matches the new window dimensions; note that width
+    // and height will be significantly larger than specified on retina
+    // displays.
+    glViewport(0, 0, width, height);
+}
+
+// Function to calculate and return the FPS as a string
+int calculateFPS(float deltaTime) {
+    static int frameCount = 0;
+    static float elapsedTime = 0.0f;
+    static float lastTime = 0.0f;
+
+    elapsedTime += deltaTime;
+    frameCount++;
+
+    if (elapsedTime - lastTime >= 1.0f) { // Update every second
+        lastTime = elapsedTime;
+        int fps = frameCount;
+        frameCount = 0;
+        return fps;
+    }
+
+    return -1.0;
+}
+
+// Function to calculate and return the RAM usage as a string
+float calculateMemUsage() {
+    float memUsage = (float)getMemoryUsage();
+    return memUsage;
+}
+
+// glfw: whenever the mouse moves, this callback is called
+// -------------------------------------------------------
+void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
+    float xpos = static_cast<float>(xposIn);
+    float ypos = static_cast<float>(yposIn);
+
+    if (firstMouse) {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset =
+        lastY - ypos; // reversed since y-coordinates go from bottom to top
+    lastX = xpos;
+    lastY = ypos;
+
+    float sensitivity = 0.1f; // change this value to your liking
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    yaw += xoffset;
+    pitch += yoffset;
+
+    // make sure that when pitch is out of bounds, screen doesn't get
+    // flipped
+    if (pitch > 89.0f)
+        pitch = 89.0f;
+    if (pitch < -89.0f)
+        pitch = -89.0f;
+
+    glm::vec3 front;
+    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.y = sin(glm::radians(pitch));
+    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+
+    cameraFront = glm::normalize(front);
+
+    // Calculate the right vector
+    cameraRight =
+        glm::normalize(glm::cross(cameraFront, glm::vec3(0.0f, 1.0f, 0.0f)));
+
+    // Calculate the up vector
+    cameraUp = glm::normalize(glm::cross(cameraRight, cameraFront));
+
+    // Calculate the left vector (opposite of right)
+    cameraLeft = -cameraRight;
+
+    // The top vector is the same as the up vector in this case
+    cameraTop = cameraUp;
+
+    frustum = createFrustumFromCamera(SCR_WIDTH / SCR_HEIGHT, fov, zNear, zFar);
+}
+
+void imgui_mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
+    ImGuiIO io = ImGui::GetIO();
+    double cursorX, cursorY;
+    glfwGetCursorPos(window, &cursorX, &cursorY);
+    ImGui_ImplGlfw_CursorPosCallback(window, cursorX, cursorY);
+}
+
+// glfw: whenever the mouse scroll wheel scrolls, this callback is called
+// ----------------------------------------------------------------------
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+    fov -= (float)yoffset;
+    if (fov < 1.0f)
+        fov = 1.0f;
+    if (fov > 105.0f)
+        fov = 105.0f;
+
+    frustum = createFrustumFromCamera(SCR_WIDTH / SCR_HEIGHT, fov, zNear, zFar);
+}
