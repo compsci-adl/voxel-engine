@@ -10,9 +10,6 @@
 
 #include <stdio.h>
 
-const float zNear = 0.1f;
-const float zFar = 1000.0f;
-
 // Material, includes shader and maps
 struct Material {
     Shader* shader; // Material shader

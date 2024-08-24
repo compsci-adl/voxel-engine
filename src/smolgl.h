@@ -1,21 +1,10 @@
 #ifndef SMOLGL_H
 #define SMOLGL_H
+
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <stdlib.h>
-
-#ifndef SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION
-#define SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION 0
-#endif
-#include <stdio.h>
-
-#ifndef SMOLGL_DEFAULT_SHADER_ATTRIB_NAME_POSITION
-#define SMOLGL_DEFAULT_SHADER_ATTRIB_NAME_POSITION                             \
-    "vertexPosition" // Bound by default to shader location:
-                     // SMOLGL_DEFAULT_SHADER_ATTRIB_NAME_POSITION
-#endif
 
 // settings
 const unsigned int SCR_WIDTH = 1280;
@@ -27,6 +16,14 @@ glm::vec3 cameraPos = glm::vec3(0.0f, 2.0f, 1.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
+glm::vec3 cameraRight = glm::vec3(1.0f, 0.0f, 0.0f);
+
+// Calculate the left vector (opposite of right)
+glm::vec3 cameraLeft = -cameraRight;
+
+// The top vector is the same as the up vector in this case
+glm::vec3 cameraTop = cameraUp;
+
 bool firstMouse = true;
 float yaw = -90.0f; // yaw is initialized to -90.0 degrees since a yaw of 0.0
                     // results in a direction vector pointing to the right so we
@@ -34,7 +31,29 @@ float yaw = -90.0f; // yaw is initialized to -90.0 degrees since a yaw of 0.0
 float pitch = 0.0f;
 float lastX = 800.0f / 2.0;
 float lastY = 600.0 / 2.0;
-float fov = 90.0f;
+float fov = 45.0f;
+
+float zNear = 0.1f;
+float zFar = 1000.0f;
+
+#include "Frustum.h"
+
+Frustum frustum = createFrustumFromCamera((float)SCR_WIDTH / (float)SCR_HEIGHT,
+                                          fov, zNear, zFar);
+
+#include <stdlib.h>
+#include "Frustum.h"
+
+#ifndef SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION
+#define SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION 0
+#endif
+#include <stdio.h>
+
+#ifndef SMOLGL_DEFAULT_SHADER_ATTRIB_NAME_POSITION
+#define SMOLGL_DEFAULT_SHADER_ATTRIB_NAME_POSITION                             \
+    "vertexPosition" // Bound by default to shader location:
+                     // SMOLGL_DEFAULT_SHADER_ATTRIB_NAME_POSITION
+#endif
 
 unsigned int smolLoadVertexBuffer(const void *buffer, int size, bool dynamic) {
     unsigned int id = 0;

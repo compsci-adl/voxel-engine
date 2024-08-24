@@ -21,7 +21,7 @@ typedef struct VoxelPoint3D {
 } VoxelPoint3d;
 
 struct Chunk {
-    static constexpr int CHUNK_SIZE = 16;
+    static constexpr int CHUNK_SIZE = 4;
     static constexpr int CHUNK_SIZE_CUBED =
         CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
     static bool debugMode;
@@ -165,8 +165,8 @@ void Chunk::randomize() {
         for (int y = 0; y < CHUNK_SIZE; y++) {
             for (int z = 0; z < CHUNK_SIZE; z++) {
                 int index = getIndex(x, y, z);
-                blocks[index].isActive = (rand() % 2 == 0) ? false : true;
-                // blocks[index].isActive = true;
+                // blocks[index].isActive = (rand() % 2 == 0) ? false : true;
+                blocks[index].isActive = true;
             }
         }
     }

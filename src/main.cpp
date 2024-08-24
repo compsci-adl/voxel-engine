@@ -24,7 +24,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 void imgui_mouse_callback(GLFWwindow *window, double xpos, double ypos);
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window, bool *cursorOn);
-float calculateFPS(float deltaTime);
+int calculateFPS(float deltaTime);
 float calculateMemUsage();
 void renderText(Shader &shader, std::string text, float x, float y, float scale,
                 glm::vec3 color);
@@ -150,10 +150,10 @@ int main() {
         // (Your code calls glfwSwapBuffers() etc.)
 
         // Calculate  FPS
-        float fps = calculateFPS(deltaTime);
+        int fps = calculateFPS(deltaTime);
         float mem = calculateMemUsage();
         if (fps != -1) {
-            std::sprintf(fpsStr, "FPS: %.0f", fps);
+            std::sprintf(fpsStr, "FPS: %d", fps);
         }
         std::sprintf(memStr, "RAM: %f MB", mem / 1000000);
 
@@ -165,6 +165,44 @@ int main() {
         // ImGui::Text("Hello there adventurer!");
         ImGui::Text("%s", fpsStr);
         ImGui::Text("%s", memStr);
+        ImGui::Text("Camera:");
+        ImGui::Text("fov: %.3f", fov);
+        ImGui::Text("pos: (%.3f, %.3f, %.3f)", cameraPos.x, cameraPos.y,
+                    cameraPos.z);
+        ImGui::Text("left: (%.3f, %.3f, %.3f)", cameraLeft.x, cameraLeft.y,
+                    cameraLeft.z);
+        ImGui::Text("right: (%.3f, %.3f, %.3f)", cameraRight.x, cameraRight.y,
+                    cameraRight.z);
+        ImGui::Text("up: (%.3f, %.3f, %.3f)", cameraUp.x, cameraUp.y,
+                    cameraUp.z);
+        ImGui::Text("frustum:");
+        ImGui::Text("left d = %.3f",
+                    frustum.planes[Frustum::FRUSTUM_LEFT].distance);
+        ImGui::Text("right d = %.3f",
+                    frustum.planes[Frustum::FRUSTUM_RIGHT].distance);
+        ImGui::Text("left: n:(%.3f, %.3f, %.3f)\nright: n:(%.3f, %.3f, %.3f)",
+                    frustum.planes[Frustum::FRUSTUM_LEFT].normal.x,
+                    frustum.planes[Frustum::FRUSTUM_LEFT].normal.y,
+                    frustum.planes[Frustum::FRUSTUM_LEFT].normal.z,
+                    frustum.planes[Frustum::FRUSTUM_RIGHT].normal.x,
+                    frustum.planes[Frustum::FRUSTUM_RIGHT].normal.y,
+                    frustum.planes[Frustum::FRUSTUM_RIGHT].normal.z);
+
+        ImGui::Text("near: n:(%.3f, %.3f, %.3f)\nfar: n:(%.3f, %.3f, %.3f)",
+                    frustum.planes[Frustum::FRUSTUM_NEAR].normal.x,
+                    frustum.planes[Frustum::FRUSTUM_NEAR].normal.y,
+                    frustum.planes[Frustum::FRUSTUM_NEAR].normal.z,
+                    frustum.planes[Frustum::FRUSTUM_FAR].normal.x,
+                    frustum.planes[Frustum::FRUSTUM_FAR].normal.y,
+                    frustum.planes[Frustum::FRUSTUM_FAR].normal.z);
+
+        ImGui::Text("bottom: n:(%.3f, %.3f, %.3f)\ntop: n:(%.3f, %.3f, %.3f)",
+                    frustum.planes[Frustum::FRUSTUM_BOTTOM].normal.x,
+                    frustum.planes[Frustum::FRUSTUM_BOTTOM].normal.y,
+                    frustum.planes[Frustum::FRUSTUM_BOTTOM].normal.z,
+                    frustum.planes[Frustum::FRUSTUM_TOP].normal.x,
+                    frustum.planes[Frustum::FRUSTUM_TOP].normal.y,
+                    frustum.planes[Frustum::FRUSTUM_TOP].normal.z);
 
         // Slider that appears in the window
         // Ends the window
@@ -183,6 +221,8 @@ int main() {
             ImGui::LabelText("##renderDistanceLabel", "Render Distance");
             ImGui::SliderInt("##renderDistanceSlider",
                              (int *)&chunkManager.chunkAddDistance, 1, 16);
+            ImGui::LabelText("##zFarLabel", "zFar");
+            ImGui::SliderFloat("##zFarSlider", &zFar, 1.0f, 2000.0f);
             // Slider that appears in the window
             // Ends the window
             ImGui::End();
@@ -248,6 +288,8 @@ void processInput(GLFWwindow *window, bool *cursorOn) {
         *cursorOn = !(*cursorOn);
         glfwSetCursorPosCallback(window, *cursorOn ? imgui_mouse_callback
                                                    : mouse_callback);
+        glfwSetScrollCallback(window, *cursorOn ? imgui_mouse_callback
+                                                : scroll_callback);
         glfwSetInputMode(window, GLFW_CURSOR,
                          *cursorOn ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
         keyPressMap[GLFW_KEY_B] = false;
@@ -258,6 +300,8 @@ void processInput(GLFWwindow *window, bool *cursorOn) {
         chunkManager.genChunk = !chunkManager.genChunk;
         keyPressMap[GLFW_KEY_X] = false;
     }
+
+    frustum = createFrustumFromCamera(SCR_WIDTH / SCR_HEIGHT, fov, zNear, zFar);
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback
@@ -271,7 +315,7 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 }
 
 // Function to calculate and return the FPS as a string
-float calculateFPS(float deltaTime) {
+int calculateFPS(float deltaTime) {
     static int frameCount = 0;
     static float elapsedTime = 0.0f;
     static float lastTime = 0.0f;
@@ -281,7 +325,7 @@ float calculateFPS(float deltaTime) {
 
     if (elapsedTime - lastTime >= 1.0f) { // Update every second
         lastTime = elapsedTime;
-        float fps = frameCount;
+        int fps = frameCount;
         frameCount = 0;
         return fps;
     }
@@ -331,7 +375,23 @@ void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
     front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
     front.y = sin(glm::radians(pitch));
     front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+
     cameraFront = glm::normalize(front);
+
+    // Calculate the right vector
+    cameraRight =
+        glm::normalize(glm::cross(cameraFront, glm::vec3(0.0f, 1.0f, 0.0f)));
+
+    // Calculate the up vector
+    cameraUp = glm::normalize(glm::cross(cameraRight, cameraFront));
+
+    // Calculate the left vector (opposite of right)
+    cameraLeft = -cameraRight;
+
+    // The top vector is the same as the up vector in this case
+    cameraTop = cameraUp;
+
+    frustum = createFrustumFromCamera(SCR_WIDTH / SCR_HEIGHT, fov, zNear, zFar);
 }
 
 void imgui_mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
@@ -349,4 +409,6 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
         fov = 1.0f;
     if (fov > 105.0f)
         fov = 105.0f;
+
+    frustum = createFrustumFromCamera(SCR_WIDTH / SCR_HEIGHT, fov, zNear, zFar);
 }

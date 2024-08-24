@@ -15,7 +15,7 @@
 
 class TPoint3D {
   public:
-    TPoint3D(float x, float y, float z) : x(x), y(y), z(z){};
+    TPoint3D(float x, float y, float z) : x(x), y(y), z(z) {};
 
     float x, y, z;
 };
@@ -333,6 +333,16 @@ void ChunkManager::updateRenderList(glm::vec3 newCameraPosition) {
                       pChunk->chunkPosition.y <= end.y) &&
                      (start.z <= pChunk->chunkPosition.z &&
                       pChunk->chunkPosition.z <= end.z))) {
+                    glm::vec3 chunkCenter =
+                        pChunk->chunkPosition +
+                        glm::vec3(Chunk::CHUNK_SIZE / 2, Chunk::CHUNK_SIZE / 2,
+                                  Chunk::CHUNK_SIZE / 2);
+                    if (!frustum.SphereInFrustum(
+                            chunkCenter,
+                            (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) /
+                                2)) {
+                        continue;
+                    }
                     chunkRenderList.push_back(pChunk);
                     // delete pChunk;
                 }
