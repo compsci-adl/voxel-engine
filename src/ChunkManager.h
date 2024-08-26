@@ -4,6 +4,7 @@
 #include <learnopengl/shader_m.h>
 #include <unordered_map>
 #include <vector>
+#include <future>
 
 /*
     TODO LIST:
@@ -40,6 +41,8 @@ typedef std::unordered_map<TPoint3D, Chunk *, hashFunc, equalsFunc> ChunkMap;
 
 struct ChunkManager {
     static int const ASYNC_NUM_CHUNKS_PER_FRAME = 12;
+    std::shared_ptr<std::mutex> chunkMutex;
+    std::shared_ptr<std::mutex> visibilityMutex;
     ChunkManager();
     ChunkManager(unsigned int _chunkGenDistance,
                  unsigned int _chunkRenderDistance, Shader *_terrainShader);
@@ -71,7 +74,7 @@ struct ChunkManager {
     ChunkList chunkRenderList;
     ChunkList chunkUnloadList;
     ChunkList chunkVisibilityList;
-    // Frustum frustum;
+
 
     bool genChunk;
     bool forceVisibilityupdate;
@@ -81,7 +84,10 @@ struct ChunkManager {
     unsigned int chunkGenDistance;
     unsigned int chunkRenderDistance;
 };
-ChunkManager::ChunkManager() {}
+ChunkManager::ChunkManager() {
+    chunkMutex = std::make_shared<std::mutex>();
+    visibilityMutex = std::make_shared<std::mutex>();
+}
 
 ChunkManager::ChunkManager(unsigned int _chunkGenDistance,
                            unsigned int _chunkRenderDistance,
@@ -91,6 +97,9 @@ ChunkManager::ChunkManager(unsigned int _chunkGenDistance,
     terrainShader = _terrainShader;
     genChunk = true;
     bool forceVisibilityupdate = true;
+
+    chunkMutex = std::make_shared<std::mutex>();
+    visibilityMutex = std::make_shared<std::mutex>();
 }
 
 ChunkManager::~ChunkManager() { chunks.clear(); }
@@ -118,12 +127,7 @@ void ChunkManager::update(float dt, glm::vec3 newCameraPosition,
 
 float roundUp(float number, float fixedBase) {
     if (fixedBase != 0 && number != 0) {
-        float sign = number > 0 ? 1.0f : -1.0f;
-        number *= sign;
-        number /= fixedBase;
-        int fixedPoint = (int)ceil(number);
-        number = fixedPoint * fixedBase;
-        number *= sign;
+        number = ceil(number / fixedBase) * fixedBase;
     }
     return number;
 }
@@ -195,41 +199,48 @@ void ChunkManager::updateAsyncChunker(glm::vec3 newCameraPosition) {
         return;
     }
 
-    std::pair<glm::vec3, glm::vec3> chunkRange =
-        GetChunkGenRange(newCameraPosition);
+    std::pair<glm::vec3, glm::vec3> chunkRange = GetChunkGenRange(newCameraPosition);
     glm::vec3 start = chunkRange.first;
     glm::vec3 end = chunkRange.second;
 
-    // generate chunks inside render distance cube
-    ChunkList::iterator iterator;
+    std::vector<std::future<void>> futures;  // Store futures to manage threads
 
-    // printf("start: (%06.3f, %06.3f), end: (%06.3f, %06.3f)", startX, startY,
-    //    endX, endY);
-    for (float i = start.x; i < end.x;
-         i += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
-        for (float j = start.y; j < end.y;
-             j += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
-            for (float k = start.z; k < end.z;
-                 k += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
-                // generate flat for now
+    for (float i = start.x; i < end.x; i += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
+        for (float j = start.y; j < end.y; j += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
+            for (float k = start.z; k < end.z; k += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
+                
                 if (j > -Block::BLOCK_RENDER_SIZE) {
                     continue;
                 }
+
                 TPoint3D coords = {i, j, k};
-                if (chunks.find(coords) != chunks.end()) {
-                    Chunk *currChunk = chunks.at(coords);
-                    if (!currChunk->isLoaded()) {
-                        chunkVisibilityList.push_back(currChunk);
+
+                // Launch a new thread for each chunk generation
+                futures.emplace_back(std::async(std::launch::async, [this, coords]() {
+                    std::lock_guard<std::mutex> lock(*chunkMutex);  // Ensure thread safety
+                    if (chunks.find(coords) != chunks.end()) {
+                        Chunk *currChunk = chunks.at(coords);
+                        if (!currChunk->isLoaded()) {
+                            std::lock_guard<std::mutex> visibilityLock(*visibilityMutex);
+                            chunkVisibilityList.push_back(currChunk);
+                        }
+                        return;
                     }
-                    continue;
-                }
-                // create new chunk
-                Chunk *newChunk =
-                    new Chunk({coords.x, coords.y, coords.z}, terrainShader);
-                chunks[coords] = newChunk;
-                chunkVisibilityList.push_back(newChunk);
+
+                    // Create new chunk
+                    Chunk *newChunk = new Chunk({coords.x, coords.y, coords.z}, terrainShader);
+                    chunks[coords] = newChunk;
+
+                    std::lock_guard<std::mutex> visibilityLock(*visibilityMutex);
+                    chunkVisibilityList.push_back(newChunk);
+                }));
             }
         }
+    }
+
+    // Wait for all threads to finish
+    for (auto &fut : futures) {
+        fut.get();
     }
 }
 

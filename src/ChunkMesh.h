@@ -57,11 +57,11 @@ struct ChunkModel {
 
 // Upload vertex data into a VAO (if supported) and VBO
 void UploadChunkMesh(ChunkMesh *mesh, bool dynamic) {
-    printf("Uploading Chunk Mesh...\n");
+    // printf("Uploading Chunk Mesh...\n");
     if (mesh->vaoId > 0) {
         // Check if mesh has already been loaded in GPU
-        printf("VAO: [ID %i] Trying to re-load an already loaded mesh\n",
-               mesh->vaoId);
+        // printf("VAO: [ID %i] Trying to re-load an already loaded mesh\n",
+            //    mesh->vaoId);
         return;
     }
 
@@ -101,10 +101,10 @@ void UploadChunkMesh(ChunkMesh *mesh, bool dynamic) {
     // Mesh uploaded successfully to VRAM (GPU)");
 
     if (mesh->vaoId > 0) {
-        printf("VAO: [ID %i] Mesh uploaded successfully to VRAM (GPU)\n",
-               mesh->vaoId);
+        // printf("VAO: [ID %i] Mesh uploaded successfully to VRAM (GPU)\n",
+            //    mesh->vaoId);
     } else {
-        printf("VBO: Mesh uploaded successfully to VRAM (GPU)\n");
+        // printf("VBO: Mesh uploaded successfully to VRAM (GPU)\n");
     }
 
     glBindVertexArray(0);
