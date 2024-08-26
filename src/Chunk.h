@@ -21,7 +21,7 @@ typedef struct VoxelPoint3D {
 } VoxelPoint3d;
 
 struct Chunk {
-    static constexpr int CHUNK_SIZE = 4;
+    static constexpr int CHUNK_SIZE = 16;
     static constexpr int CHUNK_SIZE_CUBED =
         CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
     static bool debugMode;

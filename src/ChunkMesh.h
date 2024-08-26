@@ -146,7 +146,6 @@ void DrawChunkMesh(ChunkMesh mesh, Material material, glm::vec3 position) {
     material.shader->setVec3("worldPos", position);
     // Draw mesh
     if (mesh.indices != NULL) {
-        glLineWidth(5.0f);
         material.shader->setVec3("inColor", {0.5f, 1.0f, 0.5f});
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         smolDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
@@ -155,7 +154,6 @@ void DrawChunkMesh(ChunkMesh mesh, Material material, glm::vec3 position) {
         smolDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
     }
     else {
-        glLineWidth(5.0f);
         material.shader->setVec3("inColor", {0.5f, 1.0f, 0.5f});
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         smolDrawVertexArray(0, mesh.triangleCount * 3);

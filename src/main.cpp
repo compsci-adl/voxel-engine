@@ -114,7 +114,7 @@ int main() {
     // Chunk chunk = Chunk(pos, ourShader);
     // chunk.load();
     // chunk.setup();
-    chunkManager = ChunkManager(3, ourShader);
+    chunkManager = ChunkManager(4, 3, ourShader);
 
     char fpsStr[32] = "FPS: 0";
     char memStr[32];
@@ -165,22 +165,27 @@ int main() {
         // ImGui::Text("Hello there adventurer!");
         ImGui::Text("%s", fpsStr);
         ImGui::Text("%s", memStr);
-        ImGui::Text("Camera:");
-        ImGui::Text("fov: %.3f", fov);
-        ImGui::Text("pos: (%.3f, %.3f, %.3f)", cameraPos.x, cameraPos.y,
+
+        // Slider that appears in the window
+        // Ends the window
+        ImGui::End();
+
+        ImGui::Begin("Camera");
+        ImGui::Text("fov: %.2f", fov);
+        ImGui::Text("pos: (%.2f, %.3f, %.3f)", cameraPos.x, cameraPos.y,
                     cameraPos.z);
-        ImGui::Text("left: (%.3f, %.3f, %.3f)", cameraLeft.x, cameraLeft.y,
+        ImGui::Text("left: (%.2f, %.3f, %.3f)", cameraLeft.x, cameraLeft.y,
                     cameraLeft.z);
-        ImGui::Text("right: (%.3f, %.3f, %.3f)", cameraRight.x, cameraRight.y,
+        ImGui::Text("right: (%.2f, %.3f, %.3f)", cameraRight.x, cameraRight.y,
                     cameraRight.z);
-        ImGui::Text("up: (%.3f, %.3f, %.3f)", cameraUp.x, cameraUp.y,
+        ImGui::Text("up: (%.2f, %.3f, %.3f)", cameraUp.x, cameraUp.y,
                     cameraUp.z);
         ImGui::Text("frustum:");
-        ImGui::Text("left d = %.3f",
+        ImGui::Text("left d = %.2f",
                     frustum.planes[Frustum::FRUSTUM_LEFT].distance);
-        ImGui::Text("right d = %.3f",
+        ImGui::Text("right d = %.2f",
                     frustum.planes[Frustum::FRUSTUM_RIGHT].distance);
-        ImGui::Text("left: n:(%.3f, %.3f, %.3f)\nright: n:(%.3f, %.3f, %.3f)",
+        ImGui::Text("left: n:(%.2f, %.3f, %.3f)\nright: n:(%.3f, %.3f, %.3f)",
                     frustum.planes[Frustum::FRUSTUM_LEFT].normal.x,
                     frustum.planes[Frustum::FRUSTUM_LEFT].normal.y,
                     frustum.planes[Frustum::FRUSTUM_LEFT].normal.z,
@@ -188,7 +193,7 @@ int main() {
                     frustum.planes[Frustum::FRUSTUM_RIGHT].normal.y,
                     frustum.planes[Frustum::FRUSTUM_RIGHT].normal.z);
 
-        ImGui::Text("near: n:(%.3f, %.3f, %.3f)\nfar: n:(%.3f, %.3f, %.3f)",
+        ImGui::Text("near: n:(%.2f, %.3f, %.3f)\nfar: n:(%.3f, %.3f, %.3f)",
                     frustum.planes[Frustum::FRUSTUM_NEAR].normal.x,
                     frustum.planes[Frustum::FRUSTUM_NEAR].normal.y,
                     frustum.planes[Frustum::FRUSTUM_NEAR].normal.z,
@@ -196,16 +201,13 @@ int main() {
                     frustum.planes[Frustum::FRUSTUM_FAR].normal.y,
                     frustum.planes[Frustum::FRUSTUM_FAR].normal.z);
 
-        ImGui::Text("bottom: n:(%.3f, %.3f, %.3f)\ntop: n:(%.3f, %.3f, %.3f)",
+        ImGui::Text("bottom: n:(%.2f, %.3f, %.3f)\ntop: n:(%.3f, %.3f, %.3f)",
                     frustum.planes[Frustum::FRUSTUM_BOTTOM].normal.x,
                     frustum.planes[Frustum::FRUSTUM_BOTTOM].normal.y,
                     frustum.planes[Frustum::FRUSTUM_BOTTOM].normal.z,
                     frustum.planes[Frustum::FRUSTUM_TOP].normal.x,
                     frustum.planes[Frustum::FRUSTUM_TOP].normal.y,
                     frustum.planes[Frustum::FRUSTUM_TOP].normal.z);
-
-        // Slider that appears in the window
-        // Ends the window
         ImGui::End();
 
         if (cursorOn) {
@@ -218,11 +220,16 @@ int main() {
             ImGui::LabelText("##moveSpeedLabel", "Movement Speed");
             ImGui::SliderFloat("##moveSpeedSlider", &cameraSpeedMultiplier,
                                1.0f, 1000.0f);
+            ImGui::LabelText("##chunkGenDistanceLabel", "Chunk Gen Distance");
+            ImGui::SliderInt("##chunkGenDistanceSlider",
+                             (int *)&chunkManager.chunkGenDistance, 1, 16);
             ImGui::LabelText("##renderDistanceLabel", "Render Distance");
             ImGui::SliderInt("##renderDistanceSlider",
-                             (int *)&chunkManager.chunkAddDistance, 1, 16);
+                             (int *)&chunkManager.chunkRenderDistance, 1, 16);
             ImGui::LabelText("##zFarLabel", "zFar");
             ImGui::SliderFloat("##zFarSlider", &zFar, 1.0f, 2000.0f);
+            ImGui::LabelText("##fovSliderLabel", "FOV");
+            ImGui::SliderFloat("##fovSlider", &fov, 25.0f, 105.0f);
             // Slider that appears in the window
             // Ends the window
             ImGui::End();
@@ -258,6 +265,7 @@ void processInput(GLFWwindow *window, bool *cursorOn) {
         glfwSetWindowShouldClose(window, true);
 
     float cameraSpeed = static_cast<float>(cameraSpeedMultiplier * deltaTime);
+    constexpr glm::vec3 up = glm::vec3(0.0, 1.0, 0.0);
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cameraPos += cameraSpeed * cameraFront;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
@@ -269,9 +277,9 @@ void processInput(GLFWwindow *window, bool *cursorOn) {
         cameraPos +=
             glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-        cameraPos += cameraUp * cameraSpeed;
+        cameraPos +=  up * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-        cameraPos -= cameraUp * cameraSpeed;
+        cameraPos -= up * cameraSpeed;
     }
 
     // insert into key press map

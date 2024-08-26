@@ -41,7 +41,7 @@ typedef std::unordered_map<TPoint3D, Chunk *, hashFunc, equalsFunc> ChunkMap;
 struct ChunkManager {
     static int const ASYNC_NUM_CHUNKS_PER_FRAME = 12;
     ChunkManager();
-    ChunkManager(unsigned int _chunkAddDistance, Shader *_terrainShader);
+    ChunkManager(unsigned int _chunkGenDistance, unsigned int _chunkRenderDistance, Shader *_terrainShader);
     ~ChunkManager();
     void update(float dt, glm::vec3 newCameraPosition,
                 glm::vec3 newCameraLookAt);
@@ -55,7 +55,10 @@ struct ChunkManager {
     void updateRenderList(glm::vec3 newCameraPosition);
 
     void QueueChunkToRebuild(Chunk *chunk);
-    std::pair<glm::vec3, glm::vec3> GetChunkRange(glm::vec3 newCameraPosition);
+    std::pair<glm::vec3, glm::vec3>
+    GetChunkGenRange(glm::vec3 newCameraPosition);
+    std::pair<glm::vec3, glm::vec3>
+    GetChunkRenderRange(glm::vec3 newCameraPosition);
     void render();
 
     Shader *terrainShader;
@@ -73,13 +76,17 @@ struct ChunkManager {
     bool forceVisibilityupdate;
     glm::vec3 cameraPosition;
     glm::vec3 cameraLookAt;
-    unsigned int chunkAddDistance;
+
+    unsigned int chunkGenDistance;
+    unsigned int chunkRenderDistance;
 };
 ChunkManager::ChunkManager() {}
 
-ChunkManager::ChunkManager(unsigned int _chunkAddDistance,
+ChunkManager::ChunkManager(unsigned int _chunkGenDistance,
+                           unsigned int _chunkRenderDistance,
                            Shader *_terrainShader) {
-    chunkAddDistance = _chunkAddDistance;
+    chunkGenDistance = _chunkGenDistance;
+    chunkRenderDistance = _chunkRenderDistance;
     terrainShader = _terrainShader;
     genChunk = true;
     bool forceVisibilityupdate = true;
@@ -101,7 +108,7 @@ void ChunkManager::update(float dt, glm::vec3 newCameraPosition,
     // std::async(std::launch::async, &ChunkManager::updateSetupList, this);
     updateRebuildList();
     // updateFlagsList();
-    updateUnloadList(newCameraPosition);
+    // updateUnloadList(newCameraPosition);
     updateVisibilityList(newCameraPosition);
     updateRenderList(newCameraPosition);
     cameraPosition = newCameraPosition;
@@ -110,7 +117,7 @@ void ChunkManager::update(float dt, glm::vec3 newCameraPosition,
 
 float roundUp(float number, float fixedBase) {
     if (fixedBase != 0 && number != 0) {
-        float sign = number > 0 ? 1 : -1;
+        float sign = number > 0 ? 1.0f : -1.0f;
         number *= sign;
         number /= fixedBase;
         int fixedPoint = (int)ceil(number);
@@ -121,31 +128,62 @@ float roundUp(float number, float fixedBase) {
 }
 
 std::pair<glm::vec3, glm::vec3>
-ChunkManager::GetChunkRange(glm::vec3 newCameraPosition) {
+ChunkManager::GetChunkGenRange(glm::vec3 newCameraPosition) {
     int startX = (int)roundUp(
         newCameraPosition.x -
-            (chunkAddDistance * Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
+            (chunkGenDistance * Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
         Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
     int endX = (int)roundUp(
         newCameraPosition.x +
-            (chunkAddDistance * Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
+            (chunkGenDistance * Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
         Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
     int startY = (int)roundUp(
         newCameraPosition.y -
-            (chunkAddDistance * Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
+            (chunkGenDistance * Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
         Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
     int endY = (int)roundUp(
         newCameraPosition.y +
-            (chunkAddDistance * Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
+            (chunkGenDistance * Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
         Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
     int startZ = (int)roundUp(
         newCameraPosition.z -
-            (chunkAddDistance * Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
+            (chunkGenDistance * Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
         Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
     int endZ = (int)roundUp(
         newCameraPosition.z +
-            (chunkAddDistance * Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
+            (chunkGenDistance * Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
         Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
+
+    return std::pair<glm::vec3, glm::vec3>({startX, startY, startZ},
+                                           {endX, endY, endZ});
+}
+
+std::pair<glm::vec3, glm::vec3>
+ChunkManager::GetChunkRenderRange(glm::vec3 newCameraPosition) {
+    int startX = (int)roundUp(newCameraPosition.x -
+                                  (chunkRenderDistance * Chunk::CHUNK_SIZE *
+                                   Block::BLOCK_RENDER_SIZE),
+                              Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
+    int endX = (int)roundUp(newCameraPosition.x +
+                                (chunkRenderDistance * Chunk::CHUNK_SIZE *
+                                 Block::BLOCK_RENDER_SIZE),
+                            Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
+    int startY = (int)roundUp(newCameraPosition.y -
+                                  (chunkRenderDistance * Chunk::CHUNK_SIZE *
+                                   Block::BLOCK_RENDER_SIZE),
+                              Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
+    int endY = (int)roundUp(newCameraPosition.y +
+                                (chunkRenderDistance * Chunk::CHUNK_SIZE *
+                                 Block::BLOCK_RENDER_SIZE),
+                            Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
+    int startZ = (int)roundUp(newCameraPosition.z -
+                                  (chunkRenderDistance * Chunk::CHUNK_SIZE *
+                                   Block::BLOCK_RENDER_SIZE),
+                              Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
+    int endZ = (int)roundUp(newCameraPosition.z +
+                                (chunkRenderDistance * Chunk::CHUNK_SIZE *
+                                 Block::BLOCK_RENDER_SIZE),
+                            Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE);
 
     return std::pair<glm::vec3, glm::vec3>({startX, startY, startZ},
                                            {endX, endY, endZ});
@@ -157,7 +195,7 @@ void ChunkManager::updateAsyncChunker(glm::vec3 newCameraPosition) {
     }
 
     std::pair<glm::vec3, glm::vec3> chunkRange =
-        GetChunkRange(newCameraPosition);
+        GetChunkGenRange(newCameraPosition);
     glm::vec3 start = chunkRange.first;
     glm::vec3 end = chunkRange.second;
 
@@ -292,7 +330,7 @@ void ChunkManager::updateUnloadList(glm::vec3 newCameraPosition) {
         if (pChunk->isLoaded()) {
             // TODO: async here?
             std::pair<glm::vec3, glm::vec3> chunkRange =
-                GetChunkRange(newCameraPosition);
+                GetChunkGenRange(newCameraPosition);
             glm::vec3 start = chunkRange.first;
             glm::vec3 end = chunkRange.second;
             if (!((start.x <= pChunk->chunkPosition.x &&
@@ -324,7 +362,7 @@ void ChunkManager::updateRenderList(glm::vec3 newCameraPosition) {
             if (pChunk->isLoaded() && pChunk->isSetup()) {
 
                 std::pair<glm::vec3, glm::vec3> chunkRange =
-                    GetChunkRange(newCameraPosition);
+                    GetChunkRenderRange(newCameraPosition);
                 glm::vec3 start = chunkRange.first;
                 glm::vec3 end = chunkRange.second;
                 if (((start.x <= pChunk->chunkPosition.x &&
@@ -333,14 +371,18 @@ void ChunkManager::updateRenderList(glm::vec3 newCameraPosition) {
                       pChunk->chunkPosition.y <= end.y) &&
                      (start.z <= pChunk->chunkPosition.z &&
                       pChunk->chunkPosition.z <= end.z))) {
-                    glm::vec3 chunkCenter =
-                        pChunk->chunkPosition +
-                        glm::vec3(Chunk::CHUNK_SIZE / 2, Chunk::CHUNK_SIZE / 2,
-                                  Chunk::CHUNK_SIZE / 2);
-                    if (!frustum.SphereInFrustum(
+
+                    constexpr glm::vec3 offset = glm::vec3(
+                        (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) / 2,
+                        (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) / 2,
+                        (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) / 2);
+                    glm::vec3 chunkCenter = pChunk->chunkPosition + offset;
+
+                    if (!frustum.CubeInFrustum(
                             chunkCenter,
-                            (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) /
-                                2)) {
+                            (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
+                            (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
+                            (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE))) {
                         continue;
                     }
                     chunkRenderList.push_back(pChunk);

@@ -83,7 +83,7 @@ Frustum::~Frustum() {}
 Frustum createFrustumFromCamera(float aspect, float fovY, float zNear,
                                 float zFar) {
     Frustum frustum;
-    const float halfVSide = zFar * tanf((float)glm::radians(fovY * 1.5) * .5f);
+    const float halfVSide = zFar * tanf((float)glm::radians(fovY) * .5f);
     const float halfHSide = halfVSide * aspect;
     const glm::vec3 frontMultFar = zFar * cameraFront;
 
