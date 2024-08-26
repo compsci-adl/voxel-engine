@@ -381,9 +381,9 @@ void ChunkManager::updateRenderList(glm::vec3 newCameraPosition) {
 
                     if (!frustum.CubeInFrustum(
                             chunkCenter,
-                            (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
-                            (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE),
-                            (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE))) {
+                            (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) / 2,
+                            (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) / 2,
+                            (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) / 2)) {
                         continue;
                     }
                     chunkRenderList.push_back(pChunk);

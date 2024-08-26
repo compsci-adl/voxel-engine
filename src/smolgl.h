@@ -39,7 +39,7 @@ float zFar = 1000.0f;
 #include "Frustum.h"
 
 Frustum frustum =
-    createFrustumFromCamera(SCR_WIDTH / SCR_HEIGHT, fov, zNear, zFar);
+    createFrustumFromCamera((float)SCR_WIDTH / (float)SCR_HEIGHT, fov, zNear, zFar);
 
 #include <stdlib.h>
 
