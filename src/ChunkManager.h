@@ -15,7 +15,7 @@
 
 class TPoint3D {
   public:
-    TPoint3D(float x, float y, float z) : x(x), y(y), z(z) {};
+    TPoint3D(float x, float y, float z) : x(x), y(y), z(z){};
 
     float x, y, z;
 };
@@ -41,7 +41,8 @@ typedef std::unordered_map<TPoint3D, Chunk *, hashFunc, equalsFunc> ChunkMap;
 struct ChunkManager {
     static int const ASYNC_NUM_CHUNKS_PER_FRAME = 12;
     ChunkManager();
-    ChunkManager(unsigned int _chunkGenDistance, unsigned int _chunkRenderDistance, Shader *_terrainShader);
+    ChunkManager(unsigned int _chunkGenDistance,
+                 unsigned int _chunkRenderDistance, Shader *_terrainShader);
     ~ChunkManager();
     void update(float dt, glm::vec3 newCameraPosition,
                 glm::vec3 newCameraLookAt);

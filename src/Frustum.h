@@ -15,7 +15,7 @@ struct Plane3 {
     float distance;
     Plane3();
     // Plane3(glm::vec3 _normal, glm::vec3 _origin);
-    Plane3::Plane3(const glm::vec3 &p1, const glm::vec3 &norm);
+    Plane3(const glm::vec3 &p1, const glm::vec3 &norm);
     float GetPointDistance(glm::vec3 point);
 };
 

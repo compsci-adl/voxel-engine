@@ -11,7 +11,6 @@
 
 #include <learnopengl/shader_m.h>
 
-#include "Chunk.h"
 #include "ChunkManager.h"
 #include "smolgl.h"
 #include <iostream>
@@ -277,7 +276,7 @@ void processInput(GLFWwindow *window, bool *cursorOn) {
         cameraPos +=
             glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-        cameraPos +=  up * cameraSpeed;
+        cameraPos += up * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
         cameraPos -= up * cameraSpeed;
     }
@@ -309,7 +308,8 @@ void processInput(GLFWwindow *window, bool *cursorOn) {
         keyPressMap[GLFW_KEY_X] = false;
     }
 
-    frustum = createFrustumFromCamera(SCR_WIDTH / SCR_HEIGHT, fov, zNear, zFar);
+    frustum = createFrustumFromCamera((float)SCR_WIDTH / (float)SCR_HEIGHT, fov,
+                                      zNear, zFar);
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback
@@ -399,7 +399,8 @@ void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
     // The top vector is the same as the up vector in this case
     cameraTop = cameraUp;
 
-    frustum = createFrustumFromCamera(SCR_WIDTH / SCR_HEIGHT, fov, zNear, zFar);
+    frustum = createFrustumFromCamera((float)SCR_WIDTH / (float)SCR_HEIGHT, fov,
+                                      zNear, zFar);
 }
 
 void imgui_mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
@@ -418,5 +419,6 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
     if (fov > 105.0f)
         fov = 105.0f;
 
-    frustum = createFrustumFromCamera(SCR_WIDTH / SCR_HEIGHT, fov, zNear, zFar);
+    frustum = createFrustumFromCamera((float)SCR_WIDTH / (float)SCR_HEIGHT, fov,
+                                      zNear, zFar);
 }

@@ -4,8 +4,7 @@
 #include "ChunkMesh.h"
 #include <glm/glm.hpp>
 #include <learnopengl/shader_m.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
 
 /*
         TODO LIST:
@@ -88,7 +87,7 @@ Chunk::Chunk(glm::vec3 position, Shader *shader) {
     loaded = false;
 };
 
-Chunk::~Chunk() {
+Chunk::~Chunk(){
     // delete blocks;
 };
 
