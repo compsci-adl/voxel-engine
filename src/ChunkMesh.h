@@ -146,18 +146,21 @@ void DrawChunkMesh(ChunkMesh mesh, Material material, glm::vec3 position) {
     material.shader->setVec3("worldPos", position);
     // Draw mesh
     if (mesh.indices != NULL) {
+        material.shader->setBool("useInColor", true);
         material.shader->setVec3("inColor", {0.5f, 1.0f, 0.5f});
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         smolDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
-        material.shader->setVec3("inColor", {0.0f, 0.5f, 0.0f});
+        material.shader->setBool("useInColor", false);
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         smolDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
     }
     else {
+        material.shader->setBool("useInColor", true);
         material.shader->setVec3("inColor", {0.5f, 1.0f, 0.5f});
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         smolDrawVertexArray(0, mesh.triangleCount * 3);
-        material.shader->setVec3("inColor", {0.0f, 0.5f, 0.0f});
+        // material.shader->setVec3("inColor", {0.0f, 0.5f, 0.0f});
+        material.shader->setBool("useInColor", false);
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         smolDrawVertexArray(0, mesh.triangleCount * 3);
     }

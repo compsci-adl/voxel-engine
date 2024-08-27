@@ -41,6 +41,32 @@ typedef std::unordered_map<TPoint3D, Chunk *, hashFunc, equalsFunc> ChunkMap;
 
 struct ChunkManager {
     static int const ASYNC_NUM_CHUNKS_PER_FRAME = 12;
+    static constexpr int WORLD_SIZE = 16; // world size in chunks
+    static constexpr int WORLD_SIZE_CUBED =
+        WORLD_SIZE * WORLD_SIZE * WORLD_SIZE;
+
+    // Chunk *chunks[WORLD_SIZE_CUBED]; // array of chunks
+    Chunk *chunks[WORLD_SIZE_CUBED] = {nullptr};
+
+    inline int getChunkIndex(int x, int y, int z) const {
+        return x + y * WORLD_SIZE + z * WORLD_SIZE * WORLD_SIZE;
+    }
+
+    inline int chunkIndexFromChunkPos(int x, int y, int z) const {
+        int halfWorldSize =
+            (WORLD_SIZE * (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE)) / 2;
+        int result = ((x + halfWorldSize) /
+                      (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE)) +
+                     ((y + halfWorldSize) /
+                      (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE)) *
+                         WORLD_SIZE +
+                     ((z + halfWorldSize) /
+                      (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE)) *
+                         WORLD_SIZE * WORLD_SIZE;
+
+        return result;
+    }
+
     std::shared_ptr<std::mutex> chunkMutex;
     std::shared_ptr<std::mutex> visibilityMutex;
     ChunkManager();
@@ -58,6 +84,8 @@ struct ChunkManager {
     void updateVisibilityList(glm::vec3 newCameraPosition);
     void updateRenderList(glm::vec3 newCameraPosition);
 
+    void pregenerateChunks();
+
     void QueueChunkToRebuild(Chunk *chunk);
     std::pair<glm::vec3, glm::vec3>
     GetChunkGenRange(glm::vec3 newCameraPosition);
@@ -67,14 +95,12 @@ struct ChunkManager {
 
     Shader *terrainShader;
 
-    ChunkMap chunks;
     ChunkList chunkLoadList;
     ChunkList chunkSetupList;
     ChunkList chunkRebuildList;
     ChunkList chunkRenderList;
     ChunkList chunkUnloadList;
     ChunkList chunkVisibilityList;
-
 
     bool genChunk;
     bool forceVisibilityupdate;
@@ -102,16 +128,16 @@ ChunkManager::ChunkManager(unsigned int _chunkGenDistance,
     visibilityMutex = std::make_shared<std::mutex>();
 }
 
-ChunkManager::~ChunkManager() { chunks.clear(); }
+ChunkManager::~ChunkManager() {}
 
 void ChunkManager::update(float dt, glm::vec3 newCameraPosition,
                           glm::vec3 newCameraLookAt) {
-    if (genChunk) {
-        updateAsyncChunker(newCameraPosition);
-        // asyncChunkFuture = std::async(&ChunkManager::updateAsyncChunker,
-        // this,
-        //    newCameraPosition);
-    }
+    // if (genChunk) {
+    //     updateAsyncChunker(newCameraPosition);
+    //     // asyncChunkFuture = std::async(&ChunkManager::updateAsyncChunker,
+    //     // this,
+    //     //    newCameraPosition);
+    // }
     updateLoadList();
     // std::async(std::launch::async, &ChunkManager::updateLoadList, this);
     updateSetupList();
@@ -194,44 +220,99 @@ ChunkManager::GetChunkRenderRange(glm::vec3 newCameraPosition) {
                                            {endX, endY, endZ});
 }
 
+void ChunkManager::pregenerateChunks() {
+    int halfWorldSize =
+    (WORLD_SIZE * (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE)) / 2;
+
+    std::vector<std::future<void>> futures; // Store futures to manage threads
+
+    for (float i = -halfWorldSize; i < halfWorldSize;
+         i += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
+        for (float j = -halfWorldSize; j < halfWorldSize;
+             j += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
+            for (float k = -halfWorldSize; k < halfWorldSize;
+                 k += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
+
+                if (j > -Block::BLOCK_RENDER_SIZE) {
+                    continue;
+                }
+
+                // Launch a new thread for each chunk generation
+                futures.emplace_back(std::async(std::launch::async, [this, i, j,
+                                                                     k]() {
+                    std::lock_guard<std::mutex> lock(
+                        *chunkMutex); // Ensure thread safety
+
+                    size_t idx = chunkIndexFromChunkPos((int)i, (int)j, (int)k);
+                    Chunk *currChunk = chunks[idx];
+                    if (currChunk != nullptr) {
+                        return;
+                    }
+
+                    // Create new chunk
+                    Chunk *newChunk = new Chunk({i, j, k}, terrainShader);
+                    chunks[idx] = newChunk;
+
+                    std::lock_guard<std::mutex> visibilityLock(
+                        *visibilityMutex);
+                    chunkVisibilityList.push_back(newChunk);
+                }));
+            }
+        }
+    }
+
+    // Wait for all threads to finish
+    for (auto &fut : futures) {
+        fut.get();
+    }
+}
+
 void ChunkManager::updateAsyncChunker(glm::vec3 newCameraPosition) {
     if (newCameraPosition == cameraPosition) {
         return;
     }
 
-    std::pair<glm::vec3, glm::vec3> chunkRange = GetChunkGenRange(newCameraPosition);
+    std::pair<glm::vec3, glm::vec3> chunkRange =
+        GetChunkGenRange(newCameraPosition);
     glm::vec3 start = chunkRange.first;
     glm::vec3 end = chunkRange.second;
 
-    std::vector<std::future<void>> futures;  // Store futures to manage threads
+    std::vector<std::future<void>> futures; // Store futures to manage threads
 
-    for (float i = start.x; i < end.x; i += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
-        for (float j = start.y; j < end.y; j += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
-            for (float k = start.z; k < end.z; k += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
-                
+    for (float i = start.x; i < end.x;
+         i += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
+        for (float j = start.y; j < end.y;
+             j += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
+            for (float k = start.z; k < end.z;
+                 k += Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) {
+
                 if (j > -Block::BLOCK_RENDER_SIZE) {
                     continue;
                 }
 
-                TPoint3D coords = {i, j, k};
-
                 // Launch a new thread for each chunk generation
-                futures.emplace_back(std::async(std::launch::async, [this, coords]() {
-                    std::lock_guard<std::mutex> lock(*chunkMutex);  // Ensure thread safety
-                    if (chunks.find(coords) != chunks.end()) {
-                        Chunk *currChunk = chunks.at(coords);
+                futures.emplace_back(std::async(std::launch::async, [this, i, j,
+                                                                     k]() {
+                    std::lock_guard<std::mutex> lock(
+                        *chunkMutex); // Ensure thread safety
+
+                    size_t idx = chunkIndexFromChunkPos((int)i, (int)j, (int)k);
+                    Chunk *currChunk = chunks[idx];
+                    if (currChunk != nullptr) {
                         if (!currChunk->isLoaded()) {
-                            std::lock_guard<std::mutex> visibilityLock(*visibilityMutex);
+                            std::lock_guard<std::mutex> visibilityLock(
+                                *visibilityMutex);
                             chunkVisibilityList.push_back(currChunk);
                         }
                         return;
                     }
 
                     // Create new chunk
-                    Chunk *newChunk = new Chunk({coords.x, coords.y, coords.z}, terrainShader);
-                    chunks[coords] = newChunk;
+                    Chunk *newChunk = new Chunk({i, j, k}, terrainShader);
+                    chunks[idx] = newChunk;
 
-                    std::lock_guard<std::mutex> visibilityLock(*visibilityMutex);
+                    std::lock_guard<std::mutex> visibilityLock(
+                        *visibilityMutex);
                     chunkVisibilityList.push_back(newChunk);
                 }));
             }
@@ -334,33 +415,34 @@ void ChunkManager::updateRebuildList() {
 }
 
 // unload chunks
-void ChunkManager::updateUnloadList(glm::vec3 newCameraPosition) {
-    ChunkList::iterator iterator;
-    for (iterator = chunkUnloadList.begin(); iterator != chunkUnloadList.end();
-         iterator++) {
-        Chunk *pChunk = (*iterator);
-        if (pChunk->isLoaded()) {
-            // TODO: async here?
-            std::pair<glm::vec3, glm::vec3> chunkRange =
-                GetChunkGenRange(newCameraPosition);
-            glm::vec3 start = chunkRange.first;
-            glm::vec3 end = chunkRange.second;
-            if (!((start.x <= pChunk->chunkPosition.x &&
-                   pChunk->chunkPosition.x <= end.x) &&
-                  (start.y <= pChunk->chunkPosition.y &&
-                   pChunk->chunkPosition.y <= end.y) &&
-                  (start.z <= pChunk->chunkPosition.z &&
-                   pChunk->chunkPosition.z <= end.z))) {
-                pChunk->unload();
-                chunks.erase(TPoint3D(pChunk->chunkPosition.x,
-                                      pChunk->chunkPosition.y,
-                                      pChunk->chunkPosition.z));
-                // delete pChunk;
-            }
-        }
-    }
-    chunkUnloadList.clear();
-}
+// void ChunkManager::updateUnloadList(glm::vec3 newCameraPosition) {
+//     ChunkList::iterator iterator;
+//     for (iterator = chunkUnloadList.begin(); iterator !=
+//     chunkUnloadList.end();
+//          iterator++) {
+//         Chunk *pChunk = (*iterator);
+//         if (pChunk->isLoaded()) {
+//             // TODO: async here?
+//             std::pair<glm::vec3, glm::vec3> chunkRange =
+//                 GetChunkGenRange(newCameraPosition);
+//             glm::vec3 start = chunkRange.first;
+//             glm::vec3 end = chunkRange.second;
+//             if (!((start.x <= pChunk->chunkPosition.x &&
+//                    pChunk->chunkPosition.x <= end.x) &&
+//                   (start.y <= pChunk->chunkPosition.y &&
+//                    pChunk->chunkPosition.y <= end.y) &&
+//                   (start.z <= pChunk->chunkPosition.z &&
+//                    pChunk->chunkPosition.z <= end.z))) {
+//                 pChunk->unload();
+//                 chunks.erase(TPoint3D(pChunk->chunkPosition.x,
+//                                       pChunk->chunkPosition.y,
+//                                       pChunk->chunkPosition.z));
+//                 // delete pChunk;
+//             }
+//         }
+//     }
+//     chunkUnloadList.clear();
+// }
 
 void ChunkManager::updateRenderList(glm::vec3 newCameraPosition) {
     // Clear the render list each frame BEFORE we do our tests to see what
@@ -394,7 +476,8 @@ void ChunkManager::updateRenderList(glm::vec3 newCameraPosition) {
                             chunkCenter,
                             (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) / 2,
                             (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) / 2,
-                            (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) / 2)) {
+                            (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE) /
+                                2)) {
                         continue;
                     }
                     chunkRenderList.push_back(pChunk);

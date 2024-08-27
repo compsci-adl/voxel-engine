@@ -120,6 +120,9 @@ int main() {
 
     // render loop
     // -----------
+
+    chunkManager.pregenerateChunks();
+
     while (!glfwWindowShouldClose(window)) {
         // per-frame time logic
         // --------------------
@@ -157,11 +160,7 @@ int main() {
         std::sprintf(memStr, "RAM: %f MB", mem / 1000000);
 
         ImGui::Begin("Stats");
-        // if(DEBUG){
-        // 	ImGui::DragInt("tps", &g.ticksPerSecond, 1, 0, 1000);
-        // }
-        // Text that appears in the window
-        // ImGui::Text("Hello there adventurer!");
+
         ImGui::Text("%s", fpsStr);
         ImGui::Text("%s", memStr);
 
@@ -413,11 +412,11 @@ void imgui_mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
 // ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
-    fov -= (float)yoffset;
-    if (fov < 1.0f)
-        fov = 1.0f;
-    if (fov > 105.0f)
-        fov = 105.0f;
+    cameraSpeedMultiplier -= (float)yoffset;
+    if (cameraSpeedMultiplier < 1.0f)
+        cameraSpeedMultiplier = 1.0f;
+    if (cameraSpeedMultiplier > 1000.0f)
+        cameraSpeedMultiplier = 1000.0f;
 
     frustum = createFrustumFromCamera((float)SCR_WIDTH / (float)SCR_HEIGHT, fov,
                                       zNear, zFar);
