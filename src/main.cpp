@@ -13,10 +13,15 @@
 
 #include "ChunkManager.h"
 #include "smolgl.h"
+#include "ecs.h"
+#include "PhysicsSystem.h"
+#include "Component.h"
+
 #include <iostream>
 #include <unordered_map>
 #include <glfw/src/internal.h>
 #include "utils.h"
+#include <random>
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
@@ -35,7 +40,11 @@ float lastFrame = 0.0f;
 // key press map
 std::unordered_map<int, bool> keyPressMap;
 
+// Terrain chunk manager
 ChunkManager chunkManager;
+// Global coordinator
+Coordinator gCoordinator;
+
 const int FPS_HISTORY_CAP = 5000;
 const int MEM_HISTORY_CAP = 5000;
 std::vector<float> fpsHistory;
@@ -121,7 +130,37 @@ int main() {
     // render loop
     // -----------
 
+    // generate terrain
     chunkManager.pregenerateChunks();
+
+    // initialize coordinator
+    gCoordinator.Init();
+
+    gCoordinator.RegisterComponent<Gravity>();
+    gCoordinator.RegisterComponent<RigidBody>();
+    gCoordinator.RegisterComponent<Transform>();
+
+    auto physicsSystem = gCoordinator.RegisterSystem<PhysicsSystem>();
+
+    Signature signature;
+    signature.set(gCoordinator.GetComponentType<Gravity>());
+    signature.set(gCoordinator.GetComponentType<RigidBody>());
+    signature.set(gCoordinator.GetComponentType<Transform>());
+    gCoordinator.SetSystemSignature<PhysicsSystem>(signature);
+
+    std::vector<Entity> entities(MAX_ENTITIES);
+
+    // create a dummy "player entity"
+
+    entities[0] = gCoordinator.CreateEntity();
+    gCoordinator.AddComponent(entities[0],
+                              Gravity{glm::vec3(0.0f, 0.5f, 0.0f)});
+    gCoordinator.AddComponent(
+        entities[0],
+        RigidBody{glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f)});
+
+
+    auto player = &(entities[0]);
 
     while (!glfwWindowShouldClose(window)) {
         // per-frame time logic
@@ -129,6 +168,8 @@ int main() {
         float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+
+        physicsSystem->Update(deltaTime);
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -168,10 +209,15 @@ int main() {
         // Ends the window
         ImGui::End();
 
+        // get player velocity
+        RigidBody playerRB = gCoordinator.GetComponent<RigidBody>(*player);
+
         ImGui::Begin("Camera");
         ImGui::Text("fov: %.2f", fov);
         ImGui::Text("pos: (%.2f, %.3f, %.3f)", cameraPos.x, cameraPos.y,
                     cameraPos.z);
+        ImGui::Text("velocity: (%.2f, %.3f, %.3f)", playerRB.velocity.x, playerRB.velocity.y,
+                    playerRB.velocity.z);
         ImGui::Text("left: (%.2f, %.3f, %.3f)", cameraLeft.x, cameraLeft.y,
                     cameraLeft.z);
         ImGui::Text("right: (%.2f, %.3f, %.3f)", cameraRight.x, cameraRight.y,
