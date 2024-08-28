@@ -57,11 +57,11 @@ struct ChunkModel {
 
 // Upload vertex data into a VAO (if supported) and VBO
 void UploadChunkMesh(ChunkMesh *mesh, bool dynamic) {
-    printf("Uploading Chunk Mesh...\n");
+    // printf("Uploading Chunk Mesh...\n");
     if (mesh->vaoId > 0) {
         // Check if mesh has already been loaded in GPU
-        printf("VAO: [ID %i] Trying to re-load an already loaded mesh\n",
-               mesh->vaoId);
+        // printf("VAO: [ID %i] Trying to re-load an already loaded mesh\n",
+            //    mesh->vaoId);
         return;
     }
 
@@ -101,10 +101,10 @@ void UploadChunkMesh(ChunkMesh *mesh, bool dynamic) {
     // Mesh uploaded successfully to VRAM (GPU)");
 
     if (mesh->vaoId > 0) {
-        printf("VAO: [ID %i] Mesh uploaded successfully to VRAM (GPU)\n",
-               mesh->vaoId);
+        // printf("VAO: [ID %i] Mesh uploaded successfully to VRAM (GPU)\n",
+            //    mesh->vaoId);
     } else {
-        printf("VBO: Mesh uploaded successfully to VRAM (GPU)\n");
+        // printf("VBO: Mesh uploaded successfully to VRAM (GPU)\n");
     }
 
     glBindVertexArray(0);
@@ -146,20 +146,21 @@ void DrawChunkMesh(ChunkMesh mesh, Material material, glm::vec3 position) {
     material.shader->setVec3("worldPos", position);
     // Draw mesh
     if (mesh.indices != NULL) {
-        glLineWidth(5.0f);
+        material.shader->setBool("useInColor", true);
         material.shader->setVec3("inColor", {0.5f, 1.0f, 0.5f});
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         smolDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
-        material.shader->setVec3("inColor", {0.0f, 0.5f, 0.0f});
+        material.shader->setBool("useInColor", false);
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         smolDrawVertexArrayElements(0, mesh.triangleCount * 3, 0);
     }
     else {
-        glLineWidth(5.0f);
+        material.shader->setBool("useInColor", true);
         material.shader->setVec3("inColor", {0.5f, 1.0f, 0.5f});
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         smolDrawVertexArray(0, mesh.triangleCount * 3);
-        material.shader->setVec3("inColor", {0.0f, 0.5f, 0.0f});
+        // material.shader->setVec3("inColor", {0.0f, 0.5f, 0.0f});
+        material.shader->setBool("useInColor", false);
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         smolDrawVertexArray(0, mesh.triangleCount * 3);
     }

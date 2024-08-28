@@ -15,7 +15,7 @@ struct Plane3 {
     float distance;
     Plane3();
     // Plane3(glm::vec3 _normal, glm::vec3 _origin);
-    Plane3::Plane3(const glm::vec3 &p1, const glm::vec3 &norm);
+    Plane3(const glm::vec3 &p1, const glm::vec3 &norm);
     float GetPointDistance(glm::vec3 point);
 };
 
@@ -83,7 +83,7 @@ Frustum::~Frustum() {}
 Frustum createFrustumFromCamera(float aspect, float fovY, float zNear,
                                 float zFar) {
     Frustum frustum;
-    const float halfVSide = zFar * tanf((float)glm::radians(fovY * 1.5) * .5f);
+    const float halfVSide = zFar * tanf((float)glm::radians(fovY) * .5f);
     const float halfHSide = halfVSide * aspect;
     const glm::vec3 frontMultFar = zFar * cameraFront;
 

@@ -4,8 +4,7 @@
 #include "ChunkMesh.h"
 #include <glm/glm.hpp>
 #include <learnopengl/shader_m.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
 
 /*
         TODO LIST:
@@ -21,7 +20,7 @@ typedef struct VoxelPoint3D {
 } VoxelPoint3d;
 
 struct Chunk {
-    static constexpr int CHUNK_SIZE = 4;
+    static constexpr int CHUNK_SIZE = 16;
     static constexpr int CHUNK_SIZE_CUBED =
         CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
     static bool debugMode;
@@ -42,7 +41,7 @@ struct Chunk {
     void setup();
     void render();
     // BoundingBox getBoundingBox();
-    void randomize();
+    void initialize();
     void AddCubeFace(ChunkMesh *mesh, int p1, int p2, int p3, int p4,
                      int *vCount, int *iCount);
     void CreateCube(ChunkMesh *mesh, int blockX, int blockY, int blockZ,
@@ -88,7 +87,7 @@ Chunk::Chunk(glm::vec3 position, Shader *shader) {
     loaded = false;
 };
 
-Chunk::~Chunk() {
+Chunk::~Chunk(){
     // delete blocks;
 };
 
@@ -143,7 +142,7 @@ void Chunk::rebuildMesh() {
 }
 
 void Chunk::setup() {
-    randomize();
+    initialize();
     createMesh();
     hasSetup = true;
 }
@@ -160,13 +159,14 @@ void Chunk::render() { DrawChunkMesh(mesh, material, chunkPosition); }
 //     return bBox;
 // }
 
-void Chunk::randomize() {
+void Chunk::initialize() {
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int y = 0; y < CHUNK_SIZE; y++) {
             for (int z = 0; z < CHUNK_SIZE; z++) {
                 int index = getIndex(x, y, z);
-                // blocks[index].isActive = (rand() % 2 == 0) ? false : true;
-                blocks[index].isActive = true;
+                blocks[index].isActive = (rand() % 2 == 0) ? false : true;
+                blocks[index].blockType = (rand() % 2 == 0) ? BlockType::Grass : BlockType::Sand;
+                // blocks[index].isActive = true;
             }
         }
     }
@@ -206,38 +206,39 @@ void Chunk::CreateCube(ChunkMesh *mesh, int blockX, int blockY, int blockZ,
 
     // TODO: casts here?
     // TODO: ignore normals for now
+    BlockType blockType = blocks[getIndex(blockX, blockY, blockZ)].blockType;
     int p1 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX - hs,
                                Block::BLOCK_RENDER_SIZE * blockY - hs,
                                Block::BLOCK_RENDER_SIZE * blockZ + hs, 1,
-                               BlockType::Grass);
+                               blockType);
     int p2 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX + hs,
                                Block::BLOCK_RENDER_SIZE * blockY - hs,
                                Block::BLOCK_RENDER_SIZE * blockZ + hs, 1,
-                               BlockType::Grass);
+                               blockType);
     int p3 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX + hs,
                                Block::BLOCK_RENDER_SIZE * blockY + hs,
                                Block::BLOCK_RENDER_SIZE * blockZ + hs, 1,
-                               BlockType::Grass);
+                               blockType);
     int p4 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX - hs,
                                Block::BLOCK_RENDER_SIZE * blockY + hs,
                                Block::BLOCK_RENDER_SIZE * blockZ + hs, 1,
-                               BlockType::Grass);
+                               blockType);
     int p5 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX + hs,
                                Block::BLOCK_RENDER_SIZE * blockY - hs,
                                Block::BLOCK_RENDER_SIZE * blockZ - hs, 1,
-                               BlockType::Grass);
+                               blockType);
     int p6 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX - hs,
                                Block::BLOCK_RENDER_SIZE * blockY - hs,
                                Block::BLOCK_RENDER_SIZE * blockZ - hs, 1,
-                               BlockType::Grass);
+                               blockType);
     int p7 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX - hs,
                                Block::BLOCK_RENDER_SIZE * blockY + hs,
                                Block::BLOCK_RENDER_SIZE * blockZ - hs, 1,
-                               BlockType::Grass);
+                               blockType);
     int p8 = Chunk::packVertex(Block::BLOCK_RENDER_SIZE * blockX + hs,
                                Block::BLOCK_RENDER_SIZE * blockY + hs,
                                Block::BLOCK_RENDER_SIZE * blockZ - hs, 1,
-                               BlockType::Grass);
+                               blockType);
 
     bool lDefault = false;
     bool lXNegative = lDefault;

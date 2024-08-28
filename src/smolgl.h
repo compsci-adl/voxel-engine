@@ -38,11 +38,10 @@ float zFar = 1000.0f;
 
 #include "Frustum.h"
 
-Frustum frustum = createFrustumFromCamera((float)SCR_WIDTH / (float)SCR_HEIGHT,
-                                          fov, zNear, zFar);
+Frustum frustum =
+    createFrustumFromCamera((float)SCR_WIDTH / (float)SCR_HEIGHT, fov, zNear, zFar);
 
 #include <stdlib.h>
-#include "Frustum.h"
 
 #ifndef SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION
 #define SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION 0

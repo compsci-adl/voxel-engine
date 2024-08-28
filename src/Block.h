@@ -4,11 +4,11 @@
 enum BlockType {
     Default,
     Grass,
+    Sand,
     Dirt,
     Water,
     Stone,
     Wood,
-    Sand,
     NumTypes,
 };
 
