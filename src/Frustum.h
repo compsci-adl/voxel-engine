@@ -1,7 +1,9 @@
 #ifndef FRUSTUM_H
 #define FRUSTUM_H
 
+// #include "Camera.h"
 #include "smolgl.h"
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -54,7 +56,7 @@ struct Frustum {
     int SphereInFrustum(const glm::vec3 &point, float radius);
     int CubeInFrustum(const glm::vec3 &center, float x, float y, float z);
 
-    static enum {
+    enum {
         FRUSTUM_TOP = 0,
         FRUSTUM_BOTTOM,
         FRUSTUM_LEFT,
@@ -63,7 +65,7 @@ struct Frustum {
         FRUSTUM_FAR,
     };
 
-    static enum {
+    enum {
         FRUSTUM_OUTSIDE = 0,
         FRUSTUM_INTERSECT,
         FRUSTUM_INSIDE,
@@ -79,33 +81,6 @@ struct Frustum {
 
 Frustum::Frustum() {}
 Frustum::~Frustum() {}
-
-Frustum createFrustumFromCamera(float aspect, float fovY, float zNear,
-                                float zFar) {
-    Frustum frustum;
-    const float halfVSide = zFar * tanf((float)glm::radians(fovY) * .5f);
-    const float halfHSide = halfVSide * aspect;
-    const glm::vec3 frontMultFar = zFar * cameraFront;
-
-    frustum.planes[Frustum::FRUSTUM_NEAR] =
-        Plane3(cameraPos + zNear * cameraFront, cameraFront);
-    frustum.planes[Frustum::FRUSTUM_FAR] =
-        Plane3(cameraPos + frontMultFar, -cameraFront);
-    frustum.planes[Frustum::FRUSTUM_RIGHT] =
-        Plane3(cameraPos,
-               glm::cross(frontMultFar - cameraRight * halfHSide, cameraUp));
-    frustum.planes[Frustum::FRUSTUM_LEFT] =
-        Plane3(cameraPos,
-               glm::cross(cameraUp, frontMultFar + cameraRight * halfHSide));
-    frustum.planes[Frustum::FRUSTUM_TOP] =
-        Plane3(cameraPos,
-               glm::cross(cameraRight, frontMultFar - cameraUp * halfVSide));
-    frustum.planes[Frustum::FRUSTUM_BOTTOM] =
-        Plane3(cameraPos,
-               glm::cross(frontMultFar + cameraUp * halfVSide, cameraRight));
-
-    return frustum;
-}
 
 int Frustum::SphereInFrustum(const glm::vec3 &point, float radius) {
     int result = FRUSTUM_INSIDE;

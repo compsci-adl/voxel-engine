@@ -1,7 +1,9 @@
 #ifndef MESH_H
 #define MESH_H
 
-#include "smolgl.h"
+// #include "smolgl.h"
+#include "Camera.h"
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -124,14 +126,14 @@ void UnloadChunkMesh(ChunkMesh mesh) {
     free(mesh.indices);
 }
 
-void DrawChunkMesh(ChunkMesh mesh, Material material, glm::vec3 position) {
+void DrawChunkMesh(Camera camera, ChunkMesh mesh, Material material, glm::vec3 position) {
     material.shader->use();
 
     glm::mat4 projection = glm::perspective(
-        glm::radians(fov), (float)SCR_WIDTH / SCR_HEIGHT, zNear, zFar);
+        glm::radians(camera.fov), (float)SCR_WIDTH / SCR_HEIGHT, camera.zNear, camera.zFar);
     material.shader->setMat4("projection", projection);
 
-    glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+    glm::mat4 view = glm::lookAt(camera.cameraPos, camera.cameraPos + camera.cameraFront, camera.cameraUp);
     material.shader->setMat4("view", view);
 
     glm::mat4 model = glm::mat4(1.0f);

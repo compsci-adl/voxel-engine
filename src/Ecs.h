@@ -1,7 +1,6 @@
 #ifndef ECS_H
 #define ECS_H
 
-#include "Component.h"
 #include <cstdint>
 #include <bitset>
 #include <queue>
@@ -9,6 +8,9 @@
 #include <unordered_map>
 #include <memory>
 #include <set>
+
+#include "Component.h"
+#include "ChunkManager.h"
 
 using Entity = std::uint32_t;
 const Entity MAX_ENTITIES = 5000;
@@ -283,11 +285,13 @@ struct SystemManager {
 };
 
 struct Coordinator {
-    void Init() {
+    void Init(ChunkManager* chunkManager) {
         // Create pointers to each manager
         mComponentManager = std::make_unique<ComponentManager>();
         mEntityManager = std::make_unique<EntityManager>();
         mSystemManager = std::make_unique<SystemManager>();
+        mChunkManager = chunkManager;
+        mCamera = Camera();
     }
 
     // Entity methods
@@ -346,6 +350,8 @@ struct Coordinator {
     std::unique_ptr<ComponentManager> mComponentManager;
     std::unique_ptr<EntityManager> mEntityManager;
     std::unique_ptr<SystemManager> mSystemManager;
+    ChunkManager* mChunkManager;
+    Camera mCamera;
 };
 
 #endif // ECS_H

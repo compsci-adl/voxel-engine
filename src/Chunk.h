@@ -4,7 +4,6 @@
 #include "ChunkMesh.h"
 #include <glm/glm.hpp>
 #include <learnopengl/shader_m.h>
-#include <cstdlib>
 
 /*
         TODO LIST:
@@ -39,7 +38,7 @@ struct Chunk {
     void unload();
     void rebuildMesh();
     void setup();
-    void render();
+    void render(Camera camera);
     // BoundingBox getBoundingBox();
     void initialize();
     void AddCubeFace(ChunkMesh *mesh, int p1, int p2, int p3, int p4,
@@ -148,7 +147,7 @@ void Chunk::setup() {
 }
 
 // renders the chunk
-void Chunk::render() { DrawChunkMesh(mesh, material, chunkPosition); }
+void Chunk::render(Camera camera) { DrawChunkMesh(camera, mesh, material, chunkPosition); }
 
 // BoundingBox Chunk::getBoundingBox() {
 //     glm::vec3 max = {chunkPosition.x + CHUNK_SIZE * Block::BLOCK_RENDER_SIZE,
@@ -164,8 +163,10 @@ void Chunk::initialize() {
         for (int y = 0; y < CHUNK_SIZE; y++) {
             for (int z = 0; z < CHUNK_SIZE; z++) {
                 int index = getIndex(x, y, z);
-                blocks[index].isActive = (rand() % 2 == 0) ? false : true;
-                blocks[index].blockType = (rand() % 2 == 0) ? BlockType::Grass : BlockType::Sand;
+                // NOTE: there seems to be a "pattern" in some chunks - is the same seed be initted across threads?
+                // seems like it does: https://en.cppreference.com/w/cpp/numeric/random/rand
+                blocks[index].isActive = (std::rand() % 2 == 0) ? false : true;
+                blocks[index].blockType = (std::rand() % 2 == 0) ? BlockType::Grass : BlockType::Sand;
                 // blocks[index].isActive = true;
             }
         }

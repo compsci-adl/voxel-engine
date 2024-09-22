@@ -11,17 +11,11 @@
 
 #include <learnopengl/shader_m.h>
 
-#include "ChunkManager.h"
-#include "smolgl.h"
-#include "ecs.h"
+#include "Ecs.h"
 #include "PhysicsSystem.h"
-#include "Component.h"
 
 #include <iostream>
-#include <unordered_map>
-#include <glfw/src/internal.h>
 #include "utils.h"
-#include <random>
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
@@ -41,7 +35,7 @@ float lastFrame = 0.0f;
 std::unordered_map<int, bool> keyPressMap;
 
 // Terrain chunk manager
-ChunkManager chunkManager;
+ChunkManager *chunkManager;
 // Global coordinator
 Coordinator gCoordinator;
 
@@ -122,19 +116,16 @@ int main() {
     // Chunk chunk = Chunk(pos, ourShader);
     // chunk.load();
     // chunk.setup();
-    chunkManager = ChunkManager(4, 3, ourShader);
 
     char fpsStr[32] = "FPS: 0";
     char memStr[32];
 
-    // render loop
-    // -----------
+    // initialize coordinator
+    chunkManager = new ChunkManager(4, 3, ourShader);
+    gCoordinator.Init(chunkManager);
 
     // generate terrain
-    chunkManager.pregenerateChunks();
-
-    // initialize coordinator
-    gCoordinator.Init();
+    gCoordinator.mChunkManager->pregenerateChunks();
 
     gCoordinator.RegisterComponent<Gravity>();
     gCoordinator.RegisterComponent<RigidBody>();
@@ -159,8 +150,10 @@ int main() {
         entities[0],
         RigidBody{glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f)});
 
-
     auto player = &(entities[0]);
+
+    // render loop
+    // -----------
 
     while (!glfwWindowShouldClose(window)) {
         // per-frame time logic
@@ -184,9 +177,9 @@ int main() {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // chunk.render();
-        chunkManager.update(deltaTime, cameraPos, cameraPos + cameraFront);
-        chunkManager.render();
+        gCoordinator.mChunkManager->update(deltaTime, gCoordinator.mCamera);
+
+        gCoordinator.mChunkManager->render(gCoordinator.mCamera);
 
         // Rendering
         // (Your code clears your framebuffer, renders your other stuff etc.)
@@ -213,45 +206,62 @@ int main() {
         RigidBody playerRB = gCoordinator.GetComponent<RigidBody>(*player);
 
         ImGui::Begin("Camera");
-        ImGui::Text("fov: %.2f", fov);
-        ImGui::Text("pos: (%.2f, %.3f, %.3f)", cameraPos.x, cameraPos.y,
-                    cameraPos.z);
-        ImGui::Text("velocity: (%.2f, %.3f, %.3f)", playerRB.velocity.x, playerRB.velocity.y,
-                    playerRB.velocity.z);
-        ImGui::Text("left: (%.2f, %.3f, %.3f)", cameraLeft.x, cameraLeft.y,
-                    cameraLeft.z);
-        ImGui::Text("right: (%.2f, %.3f, %.3f)", cameraRight.x, cameraRight.y,
-                    cameraRight.z);
-        ImGui::Text("up: (%.2f, %.3f, %.3f)", cameraUp.x, cameraUp.y,
-                    cameraUp.z);
+        ImGui::Text("fov: %.2f", gCoordinator.mCamera.fov);
+        ImGui::Text("pos: (%.2f, %.3f, %.3f)", gCoordinator.mCamera.cameraPos.x,
+                    gCoordinator.mCamera.cameraPos.y,
+                    gCoordinator.mCamera.cameraPos.z);
+        ImGui::Text("velocity: (%.2f, %.3f, %.3f)", playerRB.velocity.x,
+                    playerRB.velocity.y, playerRB.velocity.z);
+        ImGui::Text("left: (%.2f, %.3f, %.3f)",
+                    gCoordinator.mCamera.cameraLeft.x,
+                    gCoordinator.mCamera.cameraLeft.y,
+                    gCoordinator.mCamera.cameraLeft.z);
+        ImGui::Text("right: (%.2f, %.3f, %.3f)",
+                    gCoordinator.mCamera.cameraRight.x,
+                    gCoordinator.mCamera.cameraRight.y,
+                    gCoordinator.mCamera.cameraRight.z);
+        ImGui::Text("up: (%.2f, %.3f, %.3f)", gCoordinator.mCamera.cameraUp.x,
+                    gCoordinator.mCamera.cameraUp.y,
+                    gCoordinator.mCamera.cameraUp.z);
         ImGui::Text("frustum:");
         ImGui::Text("left d = %.2f",
-                    frustum.planes[Frustum::FRUSTUM_LEFT].distance);
+                    gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_LEFT]
+                        .distance);
         ImGui::Text("right d = %.2f",
-                    frustum.planes[Frustum::FRUSTUM_RIGHT].distance);
-        ImGui::Text("left: n:(%.2f, %.3f, %.3f)\nright: n:(%.3f, %.3f, %.3f)",
-                    frustum.planes[Frustum::FRUSTUM_LEFT].normal.x,
-                    frustum.planes[Frustum::FRUSTUM_LEFT].normal.y,
-                    frustum.planes[Frustum::FRUSTUM_LEFT].normal.z,
-                    frustum.planes[Frustum::FRUSTUM_RIGHT].normal.x,
-                    frustum.planes[Frustum::FRUSTUM_RIGHT].normal.y,
-                    frustum.planes[Frustum::FRUSTUM_RIGHT].normal.z);
+                    gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_RIGHT]
+                        .distance);
+        ImGui::Text(
+            "left: n:(%.2f, %.3f, %.3f)\nright: n:(%.3f, %.3f, %.3f)",
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_LEFT].normal.x,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_LEFT].normal.y,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_LEFT].normal.z,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_RIGHT]
+                .normal.x,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_RIGHT]
+                .normal.y,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_RIGHT]
+                .normal.z);
 
-        ImGui::Text("near: n:(%.2f, %.3f, %.3f)\nfar: n:(%.3f, %.3f, %.3f)",
-                    frustum.planes[Frustum::FRUSTUM_NEAR].normal.x,
-                    frustum.planes[Frustum::FRUSTUM_NEAR].normal.y,
-                    frustum.planes[Frustum::FRUSTUM_NEAR].normal.z,
-                    frustum.planes[Frustum::FRUSTUM_FAR].normal.x,
-                    frustum.planes[Frustum::FRUSTUM_FAR].normal.y,
-                    frustum.planes[Frustum::FRUSTUM_FAR].normal.z);
+        ImGui::Text(
+            "near: n:(%.2f, %.3f, %.3f)\nfar: n:(%.3f, %.3f, %.3f)",
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_NEAR].normal.x,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_NEAR].normal.y,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_NEAR].normal.z,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_FAR].normal.x,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_FAR].normal.y,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_FAR].normal.z);
 
-        ImGui::Text("bottom: n:(%.2f, %.3f, %.3f)\ntop: n:(%.3f, %.3f, %.3f)",
-                    frustum.planes[Frustum::FRUSTUM_BOTTOM].normal.x,
-                    frustum.planes[Frustum::FRUSTUM_BOTTOM].normal.y,
-                    frustum.planes[Frustum::FRUSTUM_BOTTOM].normal.z,
-                    frustum.planes[Frustum::FRUSTUM_TOP].normal.x,
-                    frustum.planes[Frustum::FRUSTUM_TOP].normal.y,
-                    frustum.planes[Frustum::FRUSTUM_TOP].normal.z);
+        ImGui::Text(
+            "bottom: n:(%.2f, %.3f, %.3f)\ntop: n:(%.3f, %.3f, %.3f)",
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_BOTTOM]
+                .normal.x,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_BOTTOM]
+                .normal.y,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_BOTTOM]
+                .normal.z,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_TOP].normal.x,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_TOP].normal.y,
+            gCoordinator.mCamera.frustum.planes[Frustum::FRUSTUM_TOP].normal.z);
         ImGui::End();
 
         if (cursorOn) {
@@ -260,20 +270,27 @@ int main() {
             // 	ImGui::DragInt("tps", &g.ticksPerSecond, 1, 0, 1000);
             // }
             // Text that appears in the window
-            ImGui::Checkbox("generate chunks", &chunkManager.genChunk);
+            ImGui::Checkbox("generate chunks",
+                            &gCoordinator.mChunkManager->genChunk);
             ImGui::LabelText("##moveSpeedLabel", "Movement Speed");
-            ImGui::SliderFloat("##moveSpeedSlider", &cameraSpeedMultiplier,
+            ImGui::SliderFloat("##moveSpeedSlider",
+                               &gCoordinator.mCamera.cameraSpeedMultiplier,
                                1.0f, 1000.0f);
             ImGui::LabelText("##chunkGenDistanceLabel", "Chunk Gen Distance");
-            ImGui::SliderInt("##chunkGenDistanceSlider",
-                             (int *)&chunkManager.chunkGenDistance, 1, 16);
+            ImGui::SliderInt(
+                "##chunkGenDistanceSlider",
+                (int *)&(gCoordinator.mChunkManager->chunkGenDistance), 1, 16);
             ImGui::LabelText("##renderDistanceLabel", "Render Distance");
-            ImGui::SliderInt("##renderDistanceSlider",
-                             (int *)&chunkManager.chunkRenderDistance, 1, 16);
+            ImGui::SliderInt(
+                "##renderDistanceSlider",
+                (int *)&(gCoordinator.mChunkManager->chunkRenderDistance), 1,
+                16);
             ImGui::LabelText("##zFarLabel", "zFar");
-            ImGui::SliderFloat("##zFarSlider", &zFar, 1.0f, 2000.0f);
+            ImGui::SliderFloat("##zFarSlider", &gCoordinator.mCamera.zFar, 1.0f,
+                               2000.0f);
             ImGui::LabelText("##fovSliderLabel", "FOV");
-            ImGui::SliderFloat("##fovSlider", &fov, 25.0f, 105.0f);
+            ImGui::SliderFloat("##fovSlider", &gCoordinator.mCamera.fov, 25.0f,
+                               105.0f);
             // Slider that appears in the window
             // Ends the window
             ImGui::End();
@@ -308,22 +325,29 @@ void processInput(GLFWwindow *window, bool *cursorOn) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    float cameraSpeed = static_cast<float>(cameraSpeedMultiplier * deltaTime);
+    float cameraSpeed = static_cast<float>(
+        gCoordinator.mCamera.cameraSpeedMultiplier * deltaTime);
     constexpr glm::vec3 up = glm::vec3(0.0, 1.0, 0.0);
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        cameraPos += cameraSpeed * cameraFront;
+        gCoordinator.mCamera.cameraPos +=
+            cameraSpeed * gCoordinator.mCamera.cameraFront;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        cameraPos -= cameraSpeed * cameraFront;
+        gCoordinator.mCamera.cameraPos -=
+            cameraSpeed * gCoordinator.mCamera.cameraFront;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        cameraPos -=
-            glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        gCoordinator.mCamera.cameraPos -=
+            glm::normalize(glm::cross(gCoordinator.mCamera.cameraFront,
+                                      gCoordinator.mCamera.cameraUp)) *
+            cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        cameraPos +=
-            glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        gCoordinator.mCamera.cameraPos +=
+            glm::normalize(glm::cross(gCoordinator.mCamera.cameraFront,
+                                      gCoordinator.mCamera.cameraUp)) *
+            cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-        cameraPos += up * cameraSpeed;
+        gCoordinator.mCamera.cameraPos += up * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-        cameraPos -= up * cameraSpeed;
+        gCoordinator.mCamera.cameraPos -= up * cameraSpeed;
     }
 
     // insert into key press map
@@ -349,12 +373,14 @@ void processInput(GLFWwindow *window, bool *cursorOn) {
 
     if (glfwGetKey(window, GLFW_KEY_X) == GLFW_RELEASE &&
         keyPressMap[GLFW_KEY_X]) {
-        chunkManager.genChunk = !chunkManager.genChunk;
+        gCoordinator.mChunkManager->genChunk =
+            !gCoordinator.mChunkManager->genChunk;
         keyPressMap[GLFW_KEY_X] = false;
     }
 
-    frustum = createFrustumFromCamera((float)SCR_WIDTH / (float)SCR_HEIGHT, fov,
-                                      zNear, zFar);
+    // TODO: a better way to do this?
+    gCoordinator.mCamera.frustum =
+        createFrustumFromCamera(gCoordinator.mCamera);
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback
@@ -398,54 +424,57 @@ void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);
 
-    if (firstMouse) {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
+    if (gCoordinator.mCamera.firstMouse) {
+        gCoordinator.mCamera.lastX = xpos;
+        gCoordinator.mCamera.lastY = ypos;
+        gCoordinator.mCamera.firstMouse = false;
     }
 
-    float xoffset = xpos - lastX;
-    float yoffset =
-        lastY - ypos; // reversed since y-coordinates go from bottom to top
-    lastX = xpos;
-    lastY = ypos;
+    float xoffset = xpos - gCoordinator.mCamera.lastX;
+    float yoffset = gCoordinator.mCamera.lastY -
+                    ypos; // reversed since y-coordinates go from bottom to top
+    gCoordinator.mCamera.lastX = xpos;
+    gCoordinator.mCamera.lastY = ypos;
 
     float sensitivity = 0.1f; // change this value to your liking
     xoffset *= sensitivity;
     yoffset *= sensitivity;
 
-    yaw += xoffset;
-    pitch += yoffset;
+    gCoordinator.mCamera.yaw += xoffset;
+    gCoordinator.mCamera.pitch += yoffset;
 
     // make sure that when pitch is out of bounds, screen doesn't get
     // flipped
-    if (pitch > 89.0f)
-        pitch = 89.0f;
-    if (pitch < -89.0f)
-        pitch = -89.0f;
+    if (gCoordinator.mCamera.pitch > 89.0f)
+        gCoordinator.mCamera.pitch = 89.0f;
+    if (gCoordinator.mCamera.pitch < -89.0f)
+        gCoordinator.mCamera.pitch = -89.0f;
 
     glm::vec3 front;
-    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    front.y = sin(glm::radians(pitch));
-    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.x = cos(glm::radians(gCoordinator.mCamera.yaw)) *
+              cos(glm::radians(gCoordinator.mCamera.pitch));
+    front.y = sin(glm::radians(gCoordinator.mCamera.pitch));
+    front.z = sin(glm::radians(gCoordinator.mCamera.yaw)) *
+              cos(glm::radians(gCoordinator.mCamera.pitch));
 
-    cameraFront = glm::normalize(front);
+    gCoordinator.mCamera.cameraFront = glm::normalize(front);
 
     // Calculate the right vector
-    cameraRight =
-        glm::normalize(glm::cross(cameraFront, glm::vec3(0.0f, 1.0f, 0.0f)));
+    gCoordinator.mCamera.cameraRight = glm::normalize(glm::cross(
+        gCoordinator.mCamera.cameraFront, glm::vec3(0.0f, 1.0f, 0.0f)));
 
     // Calculate the up vector
-    cameraUp = glm::normalize(glm::cross(cameraRight, cameraFront));
+    gCoordinator.mCamera.cameraUp = glm::normalize(glm::cross(
+        gCoordinator.mCamera.cameraRight, gCoordinator.mCamera.cameraFront));
 
     // Calculate the left vector (opposite of right)
-    cameraLeft = -cameraRight;
+    gCoordinator.mCamera.cameraLeft = -gCoordinator.mCamera.cameraRight;
 
     // The top vector is the same as the up vector in this case
-    cameraTop = cameraUp;
+    gCoordinator.mCamera.cameraTop = gCoordinator.mCamera.cameraUp;
 
-    frustum = createFrustumFromCamera((float)SCR_WIDTH / (float)SCR_HEIGHT, fov,
-                                      zNear, zFar);
+    gCoordinator.mCamera.frustum =
+        createFrustumFromCamera(gCoordinator.mCamera);
 }
 
 void imgui_mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
@@ -458,12 +487,12 @@ void imgui_mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
 // ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
-    cameraSpeedMultiplier -= (float)yoffset;
-    if (cameraSpeedMultiplier < 1.0f)
-        cameraSpeedMultiplier = 1.0f;
-    if (cameraSpeedMultiplier > 1000.0f)
-        cameraSpeedMultiplier = 1000.0f;
+    gCoordinator.mCamera.cameraSpeedMultiplier -= (float)yoffset;
+    if (gCoordinator.mCamera.cameraSpeedMultiplier < 1.0f)
+        gCoordinator.mCamera.cameraSpeedMultiplier = 1.0f;
+    if (gCoordinator.mCamera.cameraSpeedMultiplier > 1000.0f)
+        gCoordinator.mCamera.cameraSpeedMultiplier = 1000.0f;
 
-    frustum = createFrustumFromCamera((float)SCR_WIDTH / (float)SCR_HEIGHT, fov,
-                                      zNear, zFar);
+    gCoordinator.mCamera.frustum =
+        createFrustumFromCamera(gCoordinator.mCamera);
 }
