@@ -5,3 +5,6 @@ build
 
 # imgui
 imgui.ini
+
+# trace
+*.trace

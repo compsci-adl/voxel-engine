@@ -1,6 +1,8 @@
 #ifndef CHUNKMANAGER_H
 #define CHUNKMANAGER_H
+
 #include "Chunk.h"
+
 #include <learnopengl/shader_m.h>
 #include <unordered_map>
 #include <vector>
@@ -73,16 +75,15 @@ struct ChunkManager {
     ChunkManager(unsigned int _chunkGenDistance,
                  unsigned int _chunkRenderDistance, Shader *_terrainShader);
     ~ChunkManager();
-    void update(float dt, glm::vec3 newCameraPosition,
-                glm::vec3 newCameraLookAt);
-    void updateAsyncChunker(glm::vec3 newCameraPosition);
+    void update(float dt, Camera newCamera);
+    void updateAsyncChunker(Camera newCamera);
     void updateLoadList();
     void updateSetupList();
     void updateRebuildList();
     void updateFlagsList();
     void updateUnloadList(glm::vec3 newCameraPosition);
     void updateVisibilityList(glm::vec3 newCameraPosition);
-    void updateRenderList(glm::vec3 newCameraPosition);
+    void updateRenderList(glm::vec3 newCameraPosition, Frustum frustum);
 
     void pregenerateChunks();
 
@@ -91,7 +92,7 @@ struct ChunkManager {
     GetChunkGenRange(glm::vec3 newCameraPosition);
     std::pair<glm::vec3, glm::vec3>
     GetChunkRenderRange(glm::vec3 newCameraPosition);
-    void render();
+    void render(Camera newCamera);
 
     Shader *terrainShader;
 
@@ -104,8 +105,7 @@ struct ChunkManager {
 
     bool genChunk;
     bool forceVisibilityupdate;
-    glm::vec3 cameraPosition;
-    glm::vec3 cameraLookAt;
+    Camera camera;
 
     unsigned int chunkGenDistance;
     unsigned int chunkRenderDistance;
@@ -130,8 +130,8 @@ ChunkManager::ChunkManager(unsigned int _chunkGenDistance,
 
 ChunkManager::~ChunkManager() {}
 
-void ChunkManager::update(float dt, glm::vec3 newCameraPosition,
-                          glm::vec3 newCameraLookAt) {
+// TODO: surely we can just pass the camera right?
+void ChunkManager::update(float dt, Camera newCamera) {
     // if (genChunk) {
     //     updateAsyncChunker(newCameraPosition);
     //     // asyncChunkFuture = std::async(&ChunkManager::updateAsyncChunker,
@@ -145,10 +145,11 @@ void ChunkManager::update(float dt, glm::vec3 newCameraPosition,
     updateRebuildList();
     // updateFlagsList();
     // updateUnloadList(newCameraPosition);
-    updateVisibilityList(newCameraPosition);
-    updateRenderList(newCameraPosition);
-    cameraPosition = newCameraPosition;
-    cameraLookAt = newCameraLookAt;
+    updateVisibilityList(newCamera.cameraPos);
+    updateRenderList(newCamera.cameraPos, newCamera.frustum);
+    camera = newCamera;
+    // cameraPosition = camera.cameraPos;
+    // cameraLookAt = newCameraLookAt;
 }
 
 float roundUp(float number, float fixedBase) {
@@ -222,7 +223,7 @@ ChunkManager::GetChunkRenderRange(glm::vec3 newCameraPosition) {
 
 void ChunkManager::pregenerateChunks() {
     int halfWorldSize =
-    (WORLD_SIZE * (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE)) / 2;
+        (WORLD_SIZE * (Chunk::CHUNK_SIZE * Block::BLOCK_RENDER_SIZE)) / 2;
 
     std::vector<std::future<void>> futures; // Store futures to manage threads
 
@@ -267,13 +268,13 @@ void ChunkManager::pregenerateChunks() {
     }
 }
 
-void ChunkManager::updateAsyncChunker(glm::vec3 newCameraPosition) {
-    if (newCameraPosition == cameraPosition) {
+void ChunkManager::updateAsyncChunker(Camera newCamera) {
+    if (newCamera.cameraPos == camera.cameraPos) {
         return;
     }
 
     std::pair<glm::vec3, glm::vec3> chunkRange =
-        GetChunkGenRange(newCameraPosition);
+        GetChunkGenRange(camera.cameraPos);
     glm::vec3 start = chunkRange.first;
     glm::vec3 end = chunkRange.second;
 
@@ -444,7 +445,8 @@ void ChunkManager::updateRebuildList() {
 //     chunkUnloadList.clear();
 // }
 
-void ChunkManager::updateRenderList(glm::vec3 newCameraPosition) {
+void ChunkManager::updateRenderList(glm::vec3 newCameraPosition,
+                                    Frustum frustum) {
     // Clear the render list each frame BEFORE we do our tests to see what
     // chunks should be rendered
     chunkRenderList.clear();
@@ -497,9 +499,9 @@ void ChunkManager::updateVisibilityList(glm::vec3 newCameraPosition) {
     }
 }
 
-void ChunkManager::render() {
+void ChunkManager::render(Camera newCamera) {
     for (Chunk *chunk : chunkRenderList) {
-        chunk->render();
+        chunk->render(newCamera);
     }
 }
 

@@ -10,37 +10,6 @@
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
-// camera
-float cameraSpeedMultiplier = 20.0f;
-glm::vec3 cameraPos = glm::vec3(0.0f, 2.0f, 1.0f);
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-
-glm::vec3 cameraRight = glm::vec3(1.0f, 0.0f, 0.0f);
-
-// Calculate the left vector (opposite of right)
-glm::vec3 cameraLeft = -cameraRight;
-
-// The top vector is the same as the up vector in this case
-glm::vec3 cameraTop = cameraUp;
-
-bool firstMouse = true;
-float yaw = -90.0f; // yaw is initialized to -90.0 degrees since a yaw of 0.0
-                    // results in a direction vector pointing to the right so we
-                    // initially rotate a bit to the left.
-float pitch = 0.0f;
-float lastX = 800.0f / 2.0;
-float lastY = 600.0 / 2.0;
-float fov = 45.0f;
-
-float zNear = 0.1f;
-float zFar = 1000.0f;
-
-#include "Frustum.h"
-
-Frustum frustum =
-    createFrustumFromCamera((float)SCR_WIDTH / (float)SCR_HEIGHT, fov, zNear, zFar);
-
 #include <stdlib.h>
 
 #ifndef SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION

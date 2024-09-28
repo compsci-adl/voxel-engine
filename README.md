@@ -1,7 +1,11 @@
 # Voxel Engine
 
-![frustum-demo (1)](https://github.com/user-attachments/assets/d3c4ed18-d3ca-42a8-bc0a-ac5dd6c6debc)
+![preview](https://github.com/user-attachments/assets/f4f6eb2c-5e47-4f15-8a8e-db896befeffd)
 
+## Overview
+![overview](assets/overview.png)
+
+### Instructions
 
 Make sure to clone this repository recursively!
 ```
