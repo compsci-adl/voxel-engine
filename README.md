@@ -2,6 +2,11 @@
 
 ![preview](https://github.com/user-attachments/assets/f4f6eb2c-5e47-4f15-8a8e-db896befeffd)
 
+## Overview
+![overview](assets/overview.png)
+
+### Instructions
+
 Make sure to clone this repository recursively!
 ```
 git clone https://github.com/compsci-adl/voxel-engine --recursive
