@@ -110,7 +110,9 @@ int main() {
     // build and compile shader programs
     // ------------------------------------
     Shader *ourShader =
-        new Shader("src/shaders/camera.vert", "src/shaders/camera.frag");
+        new Shader("src/shaders/terrain.vert", "src/shaders/terrain.frag");
+    Shader *defaultShader =
+        new Shader("src/shaders/shader.vert", "src/shaders/shader.frag");
 
     // glm::vec3 pos = glm::vec3(0, 0, 0);
     // Chunk chunk = Chunk(pos, ourShader);
@@ -142,15 +144,20 @@ int main() {
     std::vector<Entity> entities(MAX_ENTITIES);
 
     // create a dummy "player entity"
-
     entities[0] = gCoordinator.CreateEntity();
     gCoordinator.AddComponent(entities[0],
-                              Gravity{glm::vec3(0.0f, 0.5f, 0.0f)});
+                              Gravity{glm::vec3(0.0f, -0.05f, 0.0f)});
     gCoordinator.AddComponent(
         entities[0],
         RigidBody{glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f)});
 
-    auto player = &(entities[0]);
+    // place the entity in front of us
+    gCoordinator.AddComponent(
+        entities[0], Transform{.position = glm::vec3(0.0f, 10.0f, -5.0f),
+                               .rotation = glm::vec3(0.0f, 0.0f, 0.0f),
+                               .scale = glm::vec3(1.0f, 1.0f, 1.0f)});
+
+    auto player = entities[0];
 
     // render loop
     // -----------
@@ -177,13 +184,18 @@ int main() {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // update
         gCoordinator.mChunkManager->update(deltaTime, gCoordinator.mCamera);
+        // get player deets
+        RigidBody playerRB = gCoordinator.GetComponent<RigidBody>(player);
+        Transform playerTrans = gCoordinator.GetComponent<Transform>(player);
 
+        // render
         gCoordinator.mChunkManager->render(gCoordinator.mCamera);
-
-        // Rendering
-        // (Your code clears your framebuffer, renders your other stuff etc.)
-        // (Your code calls glfwSwapBuffers() etc.)
+        
+        // TODO: render the "player" entity
+        defaultShader->use();
+        glUseProgram(0);
 
         // Calculate  FPS
         int fps = calculateFPS(deltaTime);
@@ -193,25 +205,33 @@ int main() {
         }
         std::sprintf(memStr, "RAM: %f MB", mem / 1000000);
 
-        ImGui::Begin("Stats");
-
+        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always,
+                                ImVec2(0.0f, 0.0f));
+        ImGuiWindowFlags statsFlags =
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+            ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+        statsFlags |= ImGuiWindowFlags_NoMove;
+        bool active = true;
+        ImGui::Begin("Stats", &active, statsFlags);
         ImGui::Text("%s", fpsStr);
         ImGui::Text("%s", memStr);
-
-        // Slider that appears in the window
+        ImGui::Separator();
         // Ends the window
         ImGui::End();
 
-        // get player velocity
-        RigidBody playerRB = gCoordinator.GetComponent<RigidBody>(*player);
+        ImGui::Begin("Player");
+        ImGui::Text("velocity: (%.2f, %.3f, %.3f)", playerRB.velocity.x,
+                    playerRB.velocity.y, playerRB.velocity.z);
+        ImGui::Text("position: (%.2f, %.3f, %.3f)", playerTrans.position.x,
+                    playerTrans.position.y, playerTrans.position.z);
+        ImGui::End();
 
         ImGui::Begin("Camera");
         ImGui::Text("fov: %.2f", gCoordinator.mCamera.fov);
         ImGui::Text("pos: (%.2f, %.3f, %.3f)", gCoordinator.mCamera.cameraPos.x,
                     gCoordinator.mCamera.cameraPos.y,
                     gCoordinator.mCamera.cameraPos.z);
-        ImGui::Text("velocity: (%.2f, %.3f, %.3f)", playerRB.velocity.x,
-                    playerRB.velocity.y, playerRB.velocity.z);
         ImGui::Text("left: (%.2f, %.3f, %.3f)",
                     gCoordinator.mCamera.cameraLeft.x,
                     gCoordinator.mCamera.cameraLeft.y,
