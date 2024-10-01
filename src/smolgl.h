@@ -12,16 +12,29 @@ const unsigned int SCR_HEIGHT = 720;
 
 #include <stdlib.h>
 
+
+#ifndef SMOLGL_TERRAIN_SHADER_ATTRIB_LOCATION_POSITION
+#define SMOLGL_TERRAIN_SHADER_ATTRIB_LOCATION_POSITION 0
+#endif
+
 #ifndef SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION
 #define SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION 0
 #endif
+
 #include <stdio.h>
+
+#ifndef SMOLGL_TERRAIN_SHADER_ATTRIB_NAME_POSITION
+#define SMOLGL_TERRAIN_SHADER_ATTRIB_NAME_POSITION                             \
+    "vertexPosition" // Bound by default to shader location:
+                     // SMOLGL_DEFAULT_SHADER_ATTRIB_NAME_POSITION
+#endif
 
 #ifndef SMOLGL_DEFAULT_SHADER_ATTRIB_NAME_POSITION
 #define SMOLGL_DEFAULT_SHADER_ATTRIB_NAME_POSITION                             \
     "vertexPosition" // Bound by default to shader location:
                      // SMOLGL_DEFAULT_SHADER_ATTRIB_NAME_POSITION
 #endif
+
 
 unsigned int smolLoadVertexBuffer(const void *buffer, int size, bool dynamic) {
     unsigned int id = 0;

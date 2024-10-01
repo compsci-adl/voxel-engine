@@ -13,6 +13,7 @@
 
 #include "Ecs.h"
 #include "PhysicsSystem.h"
+#include "Mesh.h"
 
 #include <iostream>
 #include "utils.h"
@@ -109,6 +110,7 @@ int main() {
 
     // build and compile shader programs
     // ------------------------------------
+    // TODO: should we abstract these away and just move them into smolgl.h?
     Shader *ourShader =
         new Shader("src/shaders/terrain.vert", "src/shaders/terrain.frag");
     Shader *defaultShader =
@@ -132,6 +134,7 @@ int main() {
     gCoordinator.RegisterComponent<Gravity>();
     gCoordinator.RegisterComponent<RigidBody>();
     gCoordinator.RegisterComponent<Transform>();
+    gCoordinator.RegisterComponent<Mesh>();
 
     auto physicsSystem = gCoordinator.RegisterSystem<PhysicsSystem>();
 
@@ -139,6 +142,7 @@ int main() {
     signature.set(gCoordinator.GetComponentType<Gravity>());
     signature.set(gCoordinator.GetComponentType<RigidBody>());
     signature.set(gCoordinator.GetComponentType<Transform>());
+    signature.set(gCoordinator.GetComponentType<Mesh>());
     gCoordinator.SetSystemSignature<PhysicsSystem>(signature);
 
     std::vector<Entity> entities(MAX_ENTITIES);
@@ -146,16 +150,60 @@ int main() {
     // create a dummy "player entity"
     entities[0] = gCoordinator.CreateEntity();
     gCoordinator.AddComponent(entities[0],
-                              Gravity{glm::vec3(0.0f, -0.05f, 0.0f)});
+                              Gravity{glm::vec3(0.0f, -0.1f, 0.0f)});
     gCoordinator.AddComponent(
         entities[0],
         RigidBody{glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f)});
 
     // place the entity in front of us
     gCoordinator.AddComponent(
-        entities[0], Transform{.position = glm::vec3(0.0f, 10.0f, -5.0f),
+        entities[0], Transform{.position = glm::vec3(0.0f, 4.0f, -5.0f),
                                .rotation = glm::vec3(0.0f, 0.0f, 0.0f),
                                .scale = glm::vec3(1.0f, 1.0f, 1.0f)});
+
+    // create cube mesh
+    glm::vec3 vertices[] = {
+        // Front face
+        glm::vec3(-1.0f, -1.0f, 1.0f), glm::vec3(1.0f, -1.0f, 1.0f),
+        glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(-1.0f, 1.0f, 1.0f),
+
+        // Back face
+        glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(1.0f, -1.0f, -1.0f),
+        glm::vec3(1.0f, 1.0f, -1.0f), glm::vec3(-1.0f, 1.0f, -1.0f)};
+
+    unsigned int indices[] = {// Front face
+                              0, 1, 2, 2, 3, 0,
+                              // Back face
+                              4, 5, 6, 6, 7, 4,
+                              // Left face
+                              4, 0, 3, 3, 7, 4,
+                              // Right face
+                              1, 5, 6, 6, 2, 1,
+                              // Top face
+                              3, 2, 6, 6, 7, 3,
+                              // Bottom face
+                              4, 5, 1, 1, 0, 4};
+
+    int numVertices = 8;
+    int numTriangles = 16;
+    int sizeIndicies = 36;
+
+    Mesh mesh = Mesh{.vertices = &vertices[0],
+                     .sizeVertices = numVertices,
+                     .numTriangles = numTriangles,
+                     .indices = &indices[0],
+                     .sizeIndices = sizeIndicies,
+                     .color = {1.0f, 0.0f, 0.0f, 1.0f}
+                    };
+    
+    // create material with default shader
+    Material defaultMaterial = Material(defaultShader);
+
+    // TODO: create a "MeshManager"
+    UploadMesh(&mesh, true);
+
+    gCoordinator.AddComponent(
+        entities[0], mesh);
 
     auto player = entities[0];
 
@@ -192,10 +240,11 @@ int main() {
 
         // render
         gCoordinator.mChunkManager->render(gCoordinator.mCamera);
-        
+        DrawMesh(gCoordinator.mCamera, mesh, defaultMaterial, playerTrans.position);
+
         // TODO: render the "player" entity
-        defaultShader->use();
-        glUseProgram(0);
+        // defaultShader->use();
+        // glUseProgram(0);
 
         // Calculate  FPS
         int fps = calculateFPS(deltaTime);

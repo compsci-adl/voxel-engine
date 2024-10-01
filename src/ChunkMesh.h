@@ -87,9 +87,9 @@ void UploadChunkMesh(ChunkMesh *mesh, bool dynamic) {
     // TODO: we hardcode this for now...
     // smolSetVertexAttribute(SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 1,
     //                        GL_INT, 0, 1, 0);
-    glVertexAttribIPointer(SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 1,
+    glVertexAttribIPointer(SMOLGL_TERRAIN_SHADER_ATTRIB_LOCATION_POSITION, 1,
                            GL_INT, sizeof(int), (void *)0);
-    smolEnableVertexAttribute(SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
+    smolEnableVertexAttribute(SMOLGL_TERRAIN_SHADER_ATTRIB_LOCATION_POSITION);
 
     if (mesh->indices != NULL) {
         // TODO: use unsigned short?
@@ -141,9 +141,9 @@ void DrawChunkMesh(Camera camera, ChunkMesh mesh, Material material, glm::vec3 p
 
     glBindVertexArray(mesh.vaoId);
     glBindBuffer(GL_ARRAY_BUFFER, mesh.vboId[0]);
-    glVertexAttribIPointer(SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 1,
+    glVertexAttribIPointer(SMOLGL_TERRAIN_SHADER_ATTRIB_LOCATION_POSITION, 1,
                            GL_INT, sizeof(int), (void *)0);
-    smolEnableVertexAttribute(SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
+    smolEnableVertexAttribute(SMOLGL_TERRAIN_SHADER_ATTRIB_LOCATION_POSITION);
 
     material.shader->setVec3("worldPos", position);
     // Draw mesh

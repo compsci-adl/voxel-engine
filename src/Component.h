@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <bitset>
+#include <vector>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -22,6 +23,12 @@ struct RigidBody
 {
 	glm::vec3 velocity;
 	glm::vec3 acceleration;
+};
+
+struct Hitbox
+{
+	glm::vec3 highestVert;
+	glm::vec3 lowestVert;
 };
 
 struct Transform
