@@ -73,8 +73,8 @@ struct ChunkManager {
     std::shared_ptr<std::mutex> visibilityMutex;
     ChunkManager();
     ChunkManager(unsigned int _chunkGenDistance,
-                 unsigned int _chunkRenderDistance, Shader *_terrainShader, 
-                TerrainGenerator * terrainGenerator);
+                 unsigned int _chunkRenderDistance, Shader *_terrainShader, Renderer<int> *_renderer,
+                TerrainGenerator *_terrainGenerator);
     ~ChunkManager();
     void update(float dt, Camera newCamera);
     void updateAsyncChunker(Camera newCamera);
@@ -110,6 +110,7 @@ struct ChunkManager {
 
     unsigned int chunkGenDistance;
     unsigned int chunkRenderDistance;
+    Renderer<int> *renderer;
     TerrainGenerator *terrainGenerator = nullptr;
 };
 ChunkManager::ChunkManager() {
@@ -121,13 +122,15 @@ ChunkManager::ChunkManager() {
 ChunkManager::ChunkManager(unsigned int _chunkGenDistance,
                            unsigned int _chunkRenderDistance,
                            Shader *_terrainShader, 
-                           TerrainGenerator *terrainGenerator) {
+                           Renderer<int> *_renderer,
+                           TerrainGenerator *_terrainGenerator) {
     chunkGenDistance = _chunkGenDistance;
     chunkRenderDistance = _chunkRenderDistance;
     terrainShader = _terrainShader;
     genChunk = true;
     bool forceVisibilityupdate = true;
-    this->terrainGenerator = terrainGenerator;
+    renderer = _renderer;
+    terrainGenerator = _terrainGenerator;
 
     chunkMutex = std::make_shared<std::mutex>();
     visibilityMutex = std::make_shared<std::mutex>();
@@ -256,7 +259,7 @@ void ChunkManager::pregenerateChunks() {
                     }
 
                     // Create new chunk
-                    Chunk *newChunk = new Chunk({i, j, k}, terrainShader);
+                    Chunk *newChunk = new Chunk({i, j, k}, terrainShader, renderer);
                     chunks[idx] = newChunk;
 
                     std::lock_guard<std::mutex> visibilityLock(
@@ -314,7 +317,7 @@ void ChunkManager::updateAsyncChunker(Camera newCamera) {
                     }
 
                     // Create new chunk
-                    Chunk *newChunk = new Chunk({i, j, k}, terrainShader);
+                    Chunk *newChunk = new Chunk({i, j, k}, terrainShader, renderer);
                     chunks[idx] = newChunk;
 
                     std::lock_guard<std::mutex> visibilityLock(

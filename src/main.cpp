@@ -44,6 +44,7 @@ ChunkManager *chunkManager;
 // Global coordinator
 Coordinator gCoordinator;
 
+
 const int FPS_HISTORY_CAP = 5000;
 const int MEM_HISTORY_CAP = 5000;
 std::vector<float> fpsHistory;
@@ -119,24 +120,47 @@ int main() {
 
     // build and compile shader programs
     // ------------------------------------
-    Shader *ourShader =
+    Shader *terrainShader =
         new Shader("src/shaders/terrain.vert", "src/shaders/terrain.frag");
     Shader *defaultShader =
         new Shader("src/shaders/shader.vert", "src/shaders/shader.frag");
+    Shader *blockShader = 
+        new Shader("src/shaders/basic.vert", "src/shaders/basic.frag");
 
-    // glm::vec3 pos = glm::vec3(0, 0, 0);
-    // Chunk chunk = Chunk(pos, ourShader);
-    // chunk.load();
-    // chunk.setup();
+    // define renderers
+    // -----------------------------
+    Renderer<int> * chunkRenderer = new ChunkRenderer();
+    Renderer<float> * blockRenderer = new BlockRenderer();
+
+    // add a block to block renderer
+    ChunkMesh<float> blockMesh;
+    // this should be part of class
+    blockMesh.vertexCount = 0;  // make set up code, refactor
+    blockMesh.triangleCount = 0;    // make set up code, refactor - change to index count
+
+
+    blockMesh.vertices = (float *)malloc(280 * sizeof(float));   //allocate space
+    blockMesh.indices = (unsigned int *)malloc(48 * sizeof(unsigned int));
+
+    Block::creatColourCube(glm::vec3(0.0f, 5.0f, 0.0f),
+                           glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(1.0f, 0.5f, 0.5f),
+                           blockMesh.vertices, blockMesh.indices,
+                           &(blockMesh.vertexCount), &(blockMesh.triangleCount));
+
+    blockRenderer->upload(&(blockMesh.vaoId), blockMesh.vboId, 
+        blockMesh.vertices, blockMesh.vertexCount, blockMesh.indices, blockMesh.triangleCount, true);
+    
+
+
 
     // load textures
     // -----------------------------
     Texture blockTextures("src/textures/terrain.png", 16, 16);
     blockTextures.bindTexture(0);
-    ourShader->use();
-    ourShader->setInt("texture1", 0);   // set texture1 in shader to binded texture #0
-    ourShader->setFloat("texWidth", (1.0f / (float) blockTextures.atlasCols));
-    ourShader->setFloat("texHeight", (1.0f / (float) blockTextures.atlasRows));
+    terrainShader->use();
+    terrainShader->setInt("texture1", 0);   // set texture1 in shader to binded texture #0
+    terrainShader->setFloat("texWidth", (1.0f / (float) blockTextures.atlasCols));
+    terrainShader->setFloat("texHeight", (1.0f / (float) blockTextures.atlasRows));
 
 
     // optional: back face culling
@@ -151,12 +175,12 @@ int main() {
     // define terrain generator
     // -----------------------------
     TerrainGenerator *terrainGenerator = new TerrainGenerator(Chunk::CHUNK_SIZE, 0);
-
     // Use custom terrain generator
     // TerrainGenerator * terrainGenerator = new HillsTerrainGenerator(Chunk::CHUNK_SIZE, 1337);
 
+
     // initialize coordinator
-    chunkManager = new ChunkManager(4, 3, ourShader, terrainGenerator);
+    chunkManager = new ChunkManager(4, 3, terrainShader, chunkRenderer, terrainGenerator);
     gCoordinator.Init(chunkManager);
 
     // generate terrain
@@ -227,8 +251,18 @@ int main() {
         gCoordinator.mChunkManager->render(gCoordinator.mCamera);
         
         // TODO: render the "player" entity
-        defaultShader->use();
-        glUseProgram(0);
+        // defaultShader->use();
+        // glUseProgram(0);
+
+
+
+        // render the block
+        blockRenderer->draw(gCoordinator.mCamera, &(blockMesh.vaoId), blockMesh.vboId,
+                            blockMesh.vertices, blockMesh.vertexCount,
+                            blockMesh.indices, blockMesh.triangleCount,
+                            blockShader, glm::vec3(0.0f, 0.0f, 0.0f));
+
+
 
         // Calculate  FPS
         int fps = calculateFPS(deltaTime);
