@@ -113,7 +113,7 @@ void Chunk::createMesh() {
     mesh.triangleCount = indexCount / 3;
 
     // set up vao and vbo
-    renderer->upload(&mesh.vaoId, &mesh.vboId[0], mesh.vertices,
+    renderer->upload(&mesh.vaoId, &mesh.vboId, mesh.vertices,
         mesh.vertexCount, mesh.indices, indexCount, false);
     // model = LoadChunkModelFromMesh(mesh, material);
     // model = LoadModelFromMesh(mesh);

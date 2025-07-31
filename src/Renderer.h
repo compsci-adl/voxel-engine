@@ -22,9 +22,14 @@ protected:
     void setShaderVariables(Shader *shader, Camera camera);
 public:
     // set buffers
-    virtual void upload(unsigned int * vaoId, unsigned int * vboId, 
+    virtual void upload(unsigned int * vaoId, unsigned int ** vboId, 
         VERTEX_TYPE * vertices, int vertexCount, unsigned int * indices, 
         int indexCount, bool dynamic) = 0;
+
+    // update existing buffer triangles without recreating (better for moving blocks not chunks)
+    virtual void update(unsigned int * vaoId, unsigned int * vboId,
+        VERTEX_TYPE * vertices, int vertexCount, unsigned int * indices, 
+        int indexCount);
 
     // unload vaoid and free memory
     virtual void unload(unsigned int * vaoId, unsigned int * vboId, 
@@ -40,7 +45,7 @@ public:
 
 class ChunkRenderer : public Renderer<int> {
 public:
-    void upload(unsigned int * vaoId, unsigned int * vboId, 
+    void upload(unsigned int * vaoId, unsigned int ** vboId, 
         int * vertices, int vertexCount, unsigned int * indices, 
         int indexCount, bool dynamic) override;
 
@@ -56,7 +61,7 @@ public:
 
 class BlockRenderer : public Renderer<float> {
 public:
-    void upload(unsigned int * vaoId, unsigned int * vboId, 
+    void upload(unsigned int * vaoId, unsigned int ** vboId, 
         float * vertices, int vertexCount, unsigned int * indices, 
         int indexCount, bool dynamic) override;
 
@@ -104,8 +109,31 @@ void Renderer<VERTEX_TYPE>::unload(unsigned int * vaoId, unsigned int * vboId,
 }
 
 
+template <typename VERTEX_TYPE>
+void Renderer<VERTEX_TYPE>::update(unsigned int * vaoId, unsigned int * vboId,
+        VERTEX_TYPE * vertices, int vertexCount, unsigned int * indices, 
+        int indexCount) {
+    if (*vaoId == 0 || vboId == nullptr) {
+        // printf("Error: Cannot update buffer - VAO or VBO not initialized\n");
+        return;
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, vboId[0]);
+    glBufferData(GL_ARRAY_BUFFER, vertexCount * sizeof(VERTEX_TYPE), vertices, GL_STREAM_DRAW);
+
+    if (indices) {
+        // Bind index buffer while VAO is still bound
+        glBindVertexArray(*vaoId);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vboId[1]);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount * sizeof(unsigned int), indices, GL_STREAM_DRAW);
+        glBindVertexArray(0);
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+
 // Upload vertex data into a VAO (if supported) and VBO
-void ChunkRenderer::upload(unsigned int * vaoId, unsigned int * vboId, 
+void ChunkRenderer::upload(unsigned int * vaoId, unsigned int ** vboId, 
         int * vertices, int vertexCount, unsigned int * indices, 
         int indexCount, bool dynamic) {
     // printf("Uploading Chunk Mesh...\n");
@@ -116,12 +144,12 @@ void ChunkRenderer::upload(unsigned int * vaoId, unsigned int * vboId,
         return;
     }
 
-    vboId = (unsigned int *)calloc(ChunkMesh<int>::MESH_VERTEX_BUFFERS,
+    *vboId = (unsigned int *)calloc(ChunkMesh<int>::MESH_VERTEX_BUFFERS,
                                          sizeof(unsigned int));
 
     *vaoId = 0;    // Vertex Array Object
-    vboId[0] = 0; // Vertex buffer: positions
-    vboId[1] = 0; // Vertex buffer: indices
+    (*vboId)[0] = 0; // Vertex buffer: positions
+    (*vboId)[1] = 0; // Vertex buffer: indices
 
     glGenVertexArrays(1, vaoId);
     glBindVertexArray(*vaoId);
@@ -131,7 +159,7 @@ void ChunkRenderer::upload(unsigned int * vaoId, unsigned int * vboId,
 
     // Enable vertex data: (shader-location = 0)
     
-    vboId[0] = smolLoadVertexBuffer(
+    (*vboId)[0] = smolLoadVertexBuffer(
         vertices, vertexCount * sizeof(int), dynamic);
     // TODO: we hardcode this for now...
     // smolSetVertexAttribute(SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 1,
@@ -142,7 +170,7 @@ void ChunkRenderer::upload(unsigned int * vaoId, unsigned int * vboId,
 
     if (indices != NULL) {
         // TODO: use unsigned short?
-        vboId[1] = smolLoadVertexBufferElement(
+        (*vboId)[1] = smolLoadVertexBufferElement(
             indices, indexCount * sizeof(unsigned int),
             dynamic);
     }
@@ -185,8 +213,7 @@ void ChunkRenderer::draw(Camera camera, unsigned int * vaoId, unsigned int * vbo
         shader->setBool("useInColor", false);
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         smolDrawVertexArrayElements(0, indexCount, 0);
-    }
-    else {
+    } else {
         if(ChunkMesh<int>::DEBUG_TRIANGLES){
             shader->setBool("useInColor", true);
             shader->setVec3("inColor", {0.5f, 1.0f, 0.5f});
@@ -242,7 +269,7 @@ int ChunkRenderer::updatePackedVertex(int packedVertex, int normal, int u, int v
 
 
 
-void BlockRenderer::upload(unsigned int * vaoId, unsigned int * vboId, 
+void BlockRenderer::upload(unsigned int * vaoId, unsigned int ** vboId, 
         float * vertices, int vertexCount, unsigned int * indices, 
         int indexCount, bool dynamic) {
     // printf("Uploading Block Mesh...\n");
@@ -253,23 +280,21 @@ void BlockRenderer::upload(unsigned int * vaoId, unsigned int * vboId,
         return;
     }
 
-    std::cout << "Uploading Block Mesh..." << std::endl;
 
-    vboId = (unsigned int *)calloc(ChunkMesh<int>::MESH_VERTEX_BUFFERS,
+    *vboId = (unsigned int *)calloc(ChunkMesh<int>::MESH_VERTEX_BUFFERS,
                                          sizeof(unsigned int));
 
     *vaoId = 0;    // Vertex Array Object
-    vboId[0] = 0; // Vertex buffer: positions
-    vboId[1] = 0; // Vertex buffer: indices
+    (*vboId)[0] = 0; // Vertex buffer: positions
+    (*vboId)[1] = 0; // Vertex buffer: indices
 
     glGenVertexArrays(1, vaoId);
     glBindVertexArray(*vaoId);
 
     // Enable vertex data: (shader-location = 0)
 
-    std::cout << "vboId[0] = smolLoadVertexBuffer(...)" << std::endl;
     
-    vboId[0] = smolLoadVertexBuffer(
+    (*vboId)[0] = smolLoadVertexBuffer(
         vertices, vertexCount * sizeof(float), dynamic);
     
     // define vertex attribute pointers - input layout for shaders
@@ -282,15 +307,16 @@ void BlockRenderer::upload(unsigned int * vaoId, unsigned int * vboId,
 	glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, 7 * sizeof(GLfloat), (GLvoid*)(6 * sizeof(GLfloat)));
 	smolEnableVertexAttribute(2);
 
-     if (indices != NULL) {
+    if (indices != NULL) {
         // TODO: use unsigned short?
-        vboId[1] = smolLoadVertexBufferElement(
+        (*vboId)[1] = smolLoadVertexBufferElement(
             indices, indexCount * sizeof(unsigned int),
             dynamic);
     }
 
     glBindVertexArray(0);
 }
+
 
 
 void BlockRenderer::draw(Camera camera, unsigned int * vaoId, unsigned int * vboId,
@@ -340,6 +366,9 @@ void BlockRenderer::draw(Camera camera, unsigned int * vaoId, unsigned int * vbo
     // Disable shader program
     glUseProgram(0);
 }
+
+
+
 
 
 
