@@ -23,12 +23,13 @@ const unsigned int SCR_HEIGHT = 720;
                      // SMOLGL_DEFAULT_SHADER_ATTRIB_NAME_POSITION
 #endif
 
-unsigned int smolLoadVertexBuffer(const void *buffer, int size, bool dynamic) {
+template<typename VertexType>
+unsigned int smolLoadVertexBuffer(std::vector<VertexType> &buffer, bool dynamic) {
     unsigned int id = 0;
 
     glGenBuffers(1, &id);
     glBindBuffer(GL_ARRAY_BUFFER, id);
-    glBufferData(GL_ARRAY_BUFFER, size, buffer,
+    glBufferData(GL_ARRAY_BUFFER, buffer.size() * sizeof(VertexType), buffer.data(),
                  dynamic ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW);
 
     return id;
@@ -54,13 +55,13 @@ void smolEnableVertexAttribute(unsigned int index) {
 }
 
 // Load a new attributes element buffer
-unsigned int smolLoadVertexBufferElement(const void *buffer, int size,
-                                         bool dynamic) {
+unsigned int smolLoadVertexBufferElement(const std::vector<unsigned int> &buffer, 
+        bool dynamic) {
     unsigned int id = 0;
 
     glGenBuffers(1, &id);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, buffer,
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, buffer.size() * sizeof(unsigned int), buffer.data(),
                  dynamic ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW);
 
     return id;

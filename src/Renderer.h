@@ -19,26 +19,26 @@ template <typename VERTEX_TYPE>
 class Renderer {
 protected:
     // internal functions
-    void setShaderVariables(Shader *shader, Camera camera);
+    void setShaderVariables(std::shared_ptr<Shader> shader, Camera camera);
 public:
     // set buffers
     virtual void upload(unsigned int * vaoId, unsigned int ** vboId, 
-        VERTEX_TYPE * vertices, int vertexCount, unsigned int * indices, 
+        std::vector<VERTEX_TYPE> &vertices, int vertexCount, std::vector<unsigned int> &indices, 
         int indexCount, bool dynamic) = 0;
 
     // update existing buffer triangles without recreating (better for moving blocks not chunks)
     virtual void update(unsigned int * vaoId, unsigned int * vboId,
-        VERTEX_TYPE * vertices, int vertexCount, unsigned int * indices, 
+         std::vector<VERTEX_TYPE> &vertices, int vertexCount, std::vector<unsigned int> &indices, 
         int indexCount);
 
     // unload vaoid and free memory
     virtual void unload(unsigned int * vaoId, unsigned int * vboId, 
-        VERTEX_TYPE * vertices, unsigned int * indices);
+         std::vector<VERTEX_TYPE> &vertices, std::vector<unsigned int> &indices);
 
     // draw the mesh
     virtual void draw(Camera camera, unsigned int * vaoId, unsigned int * vboId,
-        VERTEX_TYPE * vertices, int vertexCount, unsigned int * indices, int indexCount, 
-        Shader * shader, glm::vec3 position) = 0;
+         std::vector<VERTEX_TYPE> &vertices, int vertexCount, std::vector<unsigned int> &indices, int indexCount, 
+        std::shared_ptr<Shader> shader, glm::vec3 position) = 0;
     
 };
 
@@ -46,12 +46,12 @@ public:
 class ChunkRenderer : public Renderer<int> {
 public:
     void upload(unsigned int * vaoId, unsigned int ** vboId, 
-        int * vertices, int vertexCount, unsigned int * indices, 
+        std::vector<int> &vertices, int vertexCount, std::vector<unsigned int> &indices, 
         int indexCount, bool dynamic) override;
 
     void draw(Camera camera, unsigned int * vaoId, unsigned int * vboId,
-        int * vertices, int vertexCount, unsigned int * indices, 
-        int indexCount, Shader * shader, glm::vec3 position) override;
+        std::vector<int> &vertices, int vertexCount, std::vector<unsigned int> &indices, 
+        int indexCount, std::shared_ptr<Shader> shader, glm::vec3 position) override;
 
     static int packVertex(int x, int y, int z, int normal, int u, int v);
 
@@ -62,12 +62,12 @@ public:
 class BlockRenderer : public Renderer<float> {
 public:
     void upload(unsigned int * vaoId, unsigned int ** vboId, 
-        float * vertices, int vertexCount, unsigned int * indices, 
+        std::vector<float> &vertices, int vertexCount, std::vector<unsigned int> &indices, 
         int indexCount, bool dynamic) override;
 
     void draw(Camera camera, unsigned int * vaoId, unsigned int * vboId,
-        float * vertices, int vertexCount, unsigned int * indices, 
-        int indexCount, Shader * shader, glm::vec3 position) override;
+        std::vector<float> &vertices, int vertexCount, std::vector<unsigned int> &indices, 
+        int indexCount, std::shared_ptr<Shader> shader, glm::vec3 position) override;
 };
 
 
@@ -78,7 +78,7 @@ public:
 
 
 template <typename VERTEX_TYPE>
-void Renderer<VERTEX_TYPE>::setShaderVariables(Shader *shader, Camera camera) {
+void Renderer<VERTEX_TYPE>::setShaderVariables(std::shared_ptr<Shader> shader, Camera camera) {
     glm::mat4 projection = glm::perspective(
         glm::radians(camera.fov), (float)SCR_WIDTH / SCR_HEIGHT, camera.zNear, camera.zFar);
     shader->setMat4("projection", projection);
@@ -95,7 +95,7 @@ void Renderer<VERTEX_TYPE>::setShaderVariables(Shader *shader, Camera camera) {
 // Unload mesh from memory (RAM and VRAM)
 template <typename VERTEX_TYPE>
 void Renderer<VERTEX_TYPE>::unload(unsigned int * vaoId, unsigned int * vboId, 
-        VERTEX_TYPE * vertices, unsigned int * indices) {
+         std::vector<VERTEX_TYPE> &vertices, std::vector<unsigned int> &indices) {
     // Unload rlgl mesh vboId data
     smolUnloadVertexArray(*vaoId);
 
@@ -104,14 +104,14 @@ void Renderer<VERTEX_TYPE>::unload(unsigned int * vaoId, unsigned int * vboId,
             glDeleteBuffers(1, &(vboId[i]));
     free(vboId);
 
-    free(vertices);
-    free(indices);
+    // free(vertices);
+    // free(indices);
 }
 
 
 template <typename VERTEX_TYPE>
 void Renderer<VERTEX_TYPE>::update(unsigned int * vaoId, unsigned int * vboId,
-        VERTEX_TYPE * vertices, int vertexCount, unsigned int * indices, 
+        std::vector<VERTEX_TYPE> &vertices, int vertexCount, std::vector<unsigned int> &indices, 
         int indexCount) {
     if (*vaoId == 0 || vboId == nullptr) {
         // printf("Error: Cannot update buffer - VAO or VBO not initialized\n");
@@ -119,13 +119,13 @@ void Renderer<VERTEX_TYPE>::update(unsigned int * vaoId, unsigned int * vboId,
     }
 
     glBindBuffer(GL_ARRAY_BUFFER, vboId[0]);
-    glBufferData(GL_ARRAY_BUFFER, vertexCount * sizeof(VERTEX_TYPE), vertices, GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertexCount * sizeof(VERTEX_TYPE), vertices.data(), GL_STREAM_DRAW);
 
-    if (indices) {
+    if (!indices.empty()) {
         // Bind index buffer while VAO is still bound
         glBindVertexArray(*vaoId);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vboId[1]);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount * sizeof(unsigned int), indices, GL_STREAM_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount * sizeof(unsigned int), indices.data(), GL_STREAM_DRAW);
         glBindVertexArray(0);
     }
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -134,7 +134,7 @@ void Renderer<VERTEX_TYPE>::update(unsigned int * vaoId, unsigned int * vboId,
 
 // Upload vertex data into a VAO (if supported) and VBO
 void ChunkRenderer::upload(unsigned int * vaoId, unsigned int ** vboId, 
-        int * vertices, int vertexCount, unsigned int * indices, 
+         std::vector<int> &vertices, int vertexCount, std::vector<unsigned int> &indices, 
         int indexCount, bool dynamic) {
     // printf("Uploading Chunk Mesh...\n");
     if (*vaoId > 0) {
@@ -160,7 +160,7 @@ void ChunkRenderer::upload(unsigned int * vaoId, unsigned int ** vboId,
     // Enable vertex data: (shader-location = 0)
     
     (*vboId)[0] = smolLoadVertexBuffer(
-        vertices, vertexCount * sizeof(int), dynamic);
+        vertices, dynamic);
     // TODO: we hardcode this for now...
     // smolSetVertexAttribute(SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION, 1,
     //                        GL_INT, 0, 1, 0);
@@ -168,11 +168,9 @@ void ChunkRenderer::upload(unsigned int * vaoId, unsigned int ** vboId,
                            GL_INT, sizeof(int), (void *)0);
     smolEnableVertexAttribute(SMOLGL_DEFAULT_SHADER_ATTRIB_LOCATION_POSITION);
 
-    if (indices != NULL) {
+    if (indices.size() > 0) {
         // TODO: use unsigned short?
-        (*vboId)[1] = smolLoadVertexBufferElement(
-            indices, indexCount * sizeof(unsigned int),
-            dynamic);
+        (*vboId)[1] = smolLoadVertexBufferElement(indices, dynamic);
     }
 
     // if (mesh->vaoId > 0) TRACELOG(LOG_INFO, "VAO: [ID %i] Mesh uploaded
@@ -192,8 +190,8 @@ void ChunkRenderer::upload(unsigned int * vaoId, unsigned int ** vboId,
 
 
 void ChunkRenderer::draw(Camera camera, unsigned int * vaoId, unsigned int * vboId,
-        int * vertices, int vertexCount, unsigned int * indices, 
-        int indexCount, Shader * shader, glm::vec3 position) {
+        std::vector<int> &vertices, int vertexCount, std::vector<unsigned int> &indices, 
+        int indexCount, std::shared_ptr<Shader> shader, glm::vec3 position) {
 
     shader->use();
 
@@ -203,7 +201,7 @@ void ChunkRenderer::draw(Camera camera, unsigned int * vaoId, unsigned int * vbo
 
     shader->setVec3("worldPos", position);
     // Draw mesh
-    if (indices != NULL) {
+    if (indices.size() > 0) {
         if(ChunkMesh<int>::DEBUG_TRIANGLES){
             shader->setBool("useInColor", true);
             shader->setVec3("inColor", {0.5f, 1.0f, 0.5f});
@@ -270,7 +268,7 @@ int ChunkRenderer::updatePackedVertex(int packedVertex, int normal, int u, int v
 
 
 void BlockRenderer::upload(unsigned int * vaoId, unsigned int ** vboId, 
-        float * vertices, int vertexCount, unsigned int * indices, 
+         std::vector<float> &vertices, int vertexCount, std::vector<unsigned int> &indices, 
         int indexCount, bool dynamic) {
     // printf("Uploading Block Mesh...\n");
     if (*vaoId > 0) {
@@ -294,8 +292,7 @@ void BlockRenderer::upload(unsigned int * vaoId, unsigned int ** vboId,
     // Enable vertex data: (shader-location = 0)
 
     
-    (*vboId)[0] = smolLoadVertexBuffer(
-        vertices, vertexCount * sizeof(float), dynamic);
+    (*vboId)[0] = smolLoadVertexBuffer(vertices, dynamic);
     
     // define vertex attribute pointers - input layout for shaders
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(GLfloat), (GLvoid*)0);
@@ -307,11 +304,9 @@ void BlockRenderer::upload(unsigned int * vaoId, unsigned int ** vboId,
 	glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, 7 * sizeof(GLfloat), (GLvoid*)(6 * sizeof(GLfloat)));
 	smolEnableVertexAttribute(2);
 
-    if (indices != NULL) {
+    if (indices.size() > 0) {
         // TODO: use unsigned short?
-        (*vboId)[1] = smolLoadVertexBufferElement(
-            indices, indexCount * sizeof(unsigned int),
-            dynamic);
+        (*vboId)[1] = smolLoadVertexBufferElement(indices, dynamic);
     }
 
     glBindVertexArray(0);
@@ -320,8 +315,8 @@ void BlockRenderer::upload(unsigned int * vaoId, unsigned int ** vboId,
 
 
 void BlockRenderer::draw(Camera camera, unsigned int * vaoId, unsigned int * vboId,
-        float * vertices, int vertexCount, unsigned int * indices, int indexCount, 
-        Shader * shader, glm::vec3 position) {
+         std::vector<float> &vertices, int vertexCount, std::vector<unsigned int> &indices, int indexCount, 
+        std::shared_ptr<Shader> shader, glm::vec3 position) {
 
 
     shader->use();
@@ -332,7 +327,7 @@ void BlockRenderer::draw(Camera camera, unsigned int * vaoId, unsigned int * vbo
 
 
 
-    if(indices != NULL){
+    if(indices.size() > 0){
         if(ChunkMesh<int>::DEBUG_TRIANGLES){
             shader->setBool("useInColor", true);
             shader->setVec3("inColor", {0.5f, 1.0f, 0.5f});

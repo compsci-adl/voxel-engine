@@ -73,7 +73,7 @@ struct ChunkManager {
     std::shared_ptr<std::mutex> visibilityMutex;
     ChunkManager();
     ChunkManager(unsigned int _chunkGenDistance,
-                 unsigned int _chunkRenderDistance, Shader *_terrainShader, Renderer<int> *_renderer,
+                 unsigned int _chunkRenderDistance, std::shared_ptr<Shader> _terrainShader, Renderer<int> *_renderer,
                 TerrainGenerator *_terrainGenerator);
     ~ChunkManager();
     void update(float dt, Camera newCamera);
@@ -95,7 +95,7 @@ struct ChunkManager {
     GetChunkRenderRange(glm::vec3 newCameraPosition);
     void render(Camera newCamera);
 
-    Shader *terrainShader;
+    std::shared_ptr<Shader> terrainShader;
 
     ChunkList chunkLoadList;
     ChunkList chunkSetupList;
@@ -121,7 +121,7 @@ ChunkManager::ChunkManager() {
 
 ChunkManager::ChunkManager(unsigned int _chunkGenDistance,
                            unsigned int _chunkRenderDistance,
-                           Shader *_terrainShader, 
+                           std::shared_ptr<Shader> _terrainShader, 
                            Renderer<int> *_renderer,
                            TerrainGenerator *_terrainGenerator) {
     chunkGenDistance = _chunkGenDistance;

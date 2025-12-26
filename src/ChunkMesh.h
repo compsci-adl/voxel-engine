@@ -9,21 +9,24 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <learnopengl/shader_m.h>
 #include <stdlib.h>
+#include <memory>
 
 #include <stdio.h>
 
 // Material, includes shader and maps
 struct Material {
-    Shader* shader; // Material shader
+    std::shared_ptr<Shader> shader;
     // MaterialMap *maps;      // Material maps array (MAX_MATERIAL_MAPS)
     // float params[4];        // Material generic parameters (if required)
     Material();
-    Material(Shader* _shader);
+    Material(std::shared_ptr<Shader> _shader);
 };
 
 Material::Material() {}
 
-Material::Material(Shader* _shader) { shader = _shader; }
+Material::Material(std::shared_ptr<Shader> _shader) { 
+    shader = _shader; 
+}
 
 template <typename VERTEX_TYPE>
 class ChunkMesh {
@@ -33,7 +36,7 @@ public:
     int vertexCount;   // Number of vertices stored in arrays
     int triangleCount; // Number of triangles stored (indexed or not)
 
-    VERTEX_TYPE *vertices;
+    std::vector<VERTEX_TYPE> vertices;
     /*
             Represents vertex data by packing them into a 32-bit float:
             [start]...ttttttfffzzzzzzyyyyyyxxxxxx[end]
@@ -43,7 +46,8 @@ public:
             - f: bits occupied to represent the vertex's face's normal vector
             - t: block type ID
     */
-    unsigned int *indices; // Vertex indices (in case vertex data comes indexed)
+    // unsigned int *indices; // Vertex indices (in case vertex data comes indexed)
+    std::vector<unsigned int> indices;
 
     // OpenGL identifiers
     unsigned int vaoId; // OpenGL Vertex Array Object id
@@ -58,8 +62,5 @@ struct ChunkModel {
     Material *materials; // Materials array
     int *meshMaterial;   // Mesh material number
 };
-
-
-
 
 #endif // MESH_H

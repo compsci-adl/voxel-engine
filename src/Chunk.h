@@ -5,6 +5,7 @@
 #include "TerrainGenerator.h"
 #include "Renderer.h"
 #include <glm/glm.hpp>
+#include <memory>
 #include <learnopengl/shader_m.h>
 
 /*
@@ -31,9 +32,9 @@ struct Chunk {
     // ChunkModel model;
     glm::vec3 chunkPosition; // minimum corner of the chunk
     Material material;
-    Renderer<int> *renderer; // reference to renderer
+    Renderer<int> *renderer; // reference to renderer (will update to weak_ptr in impl)
 
-    Chunk(glm::vec3 position, Shader *shader, Renderer<int> * renderer);
+    Chunk(glm::vec3 position, std::shared_ptr<Shader> shader, Renderer<int> * renderer);
     ~Chunk();
 
     void createMesh();
@@ -64,7 +65,7 @@ struct Chunk {
 
 bool Chunk::debugMode = false;
 
-Chunk::Chunk(glm::vec3 position, Shader *shader, Renderer<int> * _renderer) {
+Chunk::Chunk(glm::vec3 position, std::shared_ptr<Shader> shader, Renderer<int> * _renderer) {
     // blocks = new Block[CHUNK_SIZE_CUBED];
     chunkPosition = position;
     // material = LoadMaterialDefault();
@@ -88,14 +89,16 @@ void Chunk::createMesh() {
     int totalVertices = CHUNK_SIZE_CUBED * 6 * 4 * 2;
     int totalIndices = CHUNK_SIZE_CUBED * 6 * 6 * 2;
 
-    unsigned int *indices =
-        (unsigned int *)malloc(totalIndices * sizeof(unsigned int));
+    // unsigned int *indices =
+    //     (unsigned int *)malloc(totalIndices * sizeof(unsigned int));
 
     mesh = {0};
     mesh.vertexCount = 0;
     mesh.triangleCount = 0;
-    mesh.vertices = (int *)malloc(totalVertices * sizeof(int));
-    mesh.indices = indices;
+    mesh.vertices.clear();
+    mesh.indices.clear();
+    mesh.vertices.reserve(totalVertices);
+    mesh.indices.reserve(totalIndices);
 
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int y = 0; y < CHUNK_SIZE; y++) {
@@ -110,11 +113,12 @@ void Chunk::createMesh() {
         }
     }
 
-    mesh.triangleCount = indexCount / 3;
+    mesh.vertexCount = mesh.vertices.size();
+    mesh.triangleCount = mesh.indices.size() / 3;
 
     // set up vao and vbo
     renderer->upload(&mesh.vaoId, &mesh.vboId, mesh.vertices,
-        mesh.vertexCount, mesh.indices, indexCount, false);
+        mesh.vertexCount, mesh.indices, mesh.indices.size(), false);
     // model = LoadChunkModelFromMesh(mesh, material);
     // model = LoadModelFromMesh(mesh);
 }
@@ -126,13 +130,20 @@ void Chunk::unload() {
     
     // free allocated memory
     renderer->unload(&mesh.vaoId, &mesh.vboId[0], mesh.vertices, mesh.indices);
-    
+    mesh.vertices.clear();
+    mesh.indices.clear();
+    mesh.vertexCount = 0;
+    mesh.triangleCount = 0;
     loaded = false;
     hasSetup = false;
 }
 
 void Chunk::rebuildMesh() {
     renderer->unload(&mesh.vaoId, &mesh.vboId[0], mesh.vertices, mesh.indices);
+    mesh.vertices.clear();
+    mesh.indices.clear();
+    mesh.vertexCount = 0;
+    mesh.triangleCount = 0;
     createMesh();
 }
 
@@ -177,24 +188,21 @@ void Chunk::initialize(TerrainGenerator *generator) {
 
 void Chunk::AddCubeFace(ChunkMesh<int> *mesh, int p1, int p2, int p3, int p4,
                         int *vCount, int *iCount) {
-    int v1 = *vCount;
-    int v2 = *vCount + 1;
-    int v3 = *vCount + 2;
-    int v4 = *vCount + 3;
+    int index_offset = mesh->vertices.size();
 
-    // Add vertices
-    mesh->vertices[v1] = p1;
-    mesh->vertices[v2] = p2;
-    mesh->vertices[v3] = p3;
-    mesh->vertices[v4] = p4;
+    // Add vertices using push_back
+    mesh->vertices.push_back(p1);
+    mesh->vertices.push_back(p2);
+    mesh->vertices.push_back(p3);
+    mesh->vertices.push_back(p4);
 
-    // Add indices
-    mesh->indices[*iCount] = v1;
-    mesh->indices[*iCount + 1] = v2;
-    mesh->indices[*iCount + 2] = v3;
-    mesh->indices[*iCount + 3] = v1;
-    mesh->indices[*iCount + 4] = v3;
-    mesh->indices[*iCount + 5] = v4;
+    // Add indices using push_back
+    mesh->indices.push_back(index_offset);
+    mesh->indices.push_back(index_offset + 1);
+    mesh->indices.push_back(index_offset + 2);
+    mesh->indices.push_back(index_offset);
+    mesh->indices.push_back(index_offset + 2);
+    mesh->indices.push_back(index_offset + 3);
 
     *vCount += 4;
     *iCount += 6;
